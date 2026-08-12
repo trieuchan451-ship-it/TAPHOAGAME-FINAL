@@ -107,3 +107,8 @@ V63 MOBILE CHAT FIX
 - Chat hỗ trợ thu gọn kiểu Messenger.
 - Bong bóng tin nhắn nền sáng, chữ đen, tin của mình màu xanh nhạt.
 - Khung chat thấp hơn, dễ dùng trên điện thoại.
+
+V64 MOBILE FLOAT FIX
+- Trên điện thoại, Chat cộng đồng chuyển sang nút riêng ở góc trái dưới.
+- Telegram/Facebook/Điện thoại giữ riêng ở góc phải dưới.
+- Khi mở chat, khung chat nằm cao hơn cụm hỗ trợ và không còn chồng lên nhau.

@@ -55,3 +55,38 @@ input,select,textarea{width:100%;padding:11px 12px;margin:5px 0;background:#070d
  .support-float{bottom:18px}
  .chat-shell{border-radius:12px}.chat-messages{height:48vh}.chat-top{height:48px}.msg-bubble{max-width:82%;font-size:12px}
 }
+
+/* V64: separate community chat from Telegram/Facebook/Phone on mobile */
+@media(max-width:620px){
+  .support-float{
+    right:10px!important;
+    bottom:18px!important;
+    gap:7px!important;
+    z-index:72!important;
+  }
+  .support-float a{
+    width:40px!important;
+    height:40px!important;
+    font-size:13px!important;
+  }
+  .community-open{
+    right:auto!important;
+    left:12px!important;
+    bottom:18px!important;
+    width:44px!important;
+    height:44px!important;
+    z-index:74!important;
+    box-shadow:0 8px 22px rgba(0,0,0,.35)!important;
+  }
+  .community{
+    left:8px!important;
+    right:8px!important;
+    bottom:70px!important;
+    width:auto!important;
+    height:50vh!important;
+    z-index:76!important;
+  }
+  .community.hidden{
+    display:none!important;
+  }
+}
