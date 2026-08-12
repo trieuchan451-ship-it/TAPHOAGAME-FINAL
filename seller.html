@@ -1,0 +1,90 @@
+<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Trung tâm người bán</title><link rel="stylesheet" href="/style.css?v=66"></head><body>
+
+
+<div class="warning"><span>⚠ CẢNH BÁO: Không cung cấp mật khẩu/OTP • Không giao dịch riêng ngoài hệ thống • Chỉ thanh toán theo thông tin TAPHOAGAME hiển thị • Có vấn đề hãy liên hệ hỗ trợ.</span></div>
+<div class="header"><div class="head"><a class="brand" href="/"><div class="brand-logo"></div><div><strong>TAPHOAGAME.VN</strong><small>CHỢ TÀI KHOẢN GAME CAO CẤP</small></div></a><div class="search"><input id="q" placeholder="Tìm tài khoản, trò chơi, người bán..."><button onclick="doSearch()">TÌM</button></div><div class="actions"><div class="wallet guest-hidden"><small>SỐ DƯ</small><b data-balance>0đ</b></div><a class="btn primary" href="/deposit.html">NẠP TIỀN</a><button class="btn" id="accountBtn" onclick="goAccount()">TÀI KHOẢN</button><div class="user-chip" id="userChip" style="display:none" onclick="goAccount()"><img id="chipAvatar" src="/assets/avatars/1.svg"><b id="chipName">Tài khoản</b></div></div></div><div class="nav"><a href="/">TRANG CHỦ</a><a href="/products.html">KHO TÀI KHOẢN</a><a href="/auctions.html">ĐẤU GIÁ</a><a href="/cart.html">GIỎ HÀNG</a><a href="/favorites.html">YÊU THÍCH</a><a href="/history.html">ĐƠN HÀNG</a><a href="/support.html">HỖ TRỢ</a><a href="/seller.html">BÁN HÀNG</a></div></div>
+<div class="mobile-nav"><a href="/">TRANG CHỦ</a><a href="/products.html">KHO</a><a href="/cart.html">GIỎ HÀNG</a><a href="/support.html">HỖ TRỢ</a><a href="/account.html">CÁ NHÂN</a></div>
+<div class="support-float"><a class="tg" href="https://t.me/tungtungsas" target="_blank">TG</a><a class="fb" href="https://www.facebook.com/share/19LX5nekKj/?mibextid=wwXIfr" target="_blank">f</a><a class="phone" href="tel:0876148544">☎</a></div>
+
+
+<main class="page"><div class="backbar"><a class="backbtn" href="javascript:history.back()">← TRỞ VỀ</a></div><div id="sellerRoot"></div><div class="site-dialog" id="sellerCloseDialog"><div class="dialog-card"><h3>CHỐT GIÁ ĐẤU GIÁ</h3><p id="sellerCloseText"></p><div class="dialog-actions"><button class="btn" onclick="sellerCloseDialog.classList.remove('open')">HỦY</button><button class="btn primary" onclick="confirmSellerClose()">CHỐT GIÁ</button></div></div></div></main>
+
+
+<div class="modal" id="auth"><div class="authbox"><div class="auth-head"><div><b>TÀI KHOẢN TAPHOAGAME</b><div class="hint">Thành viên, người bán và quản trị viên</div></div><button class="btn" onclick="closeAuth()">ĐÓNG</button></div><div class="auth-body"><div class="tabs"><button class="tab on" data-t="login" onclick="authTab('login')">ĐĂNG NHẬP</button><button class="tab" data-t="register" onclick="authTab('register')">ĐĂNG KÝ</button></div><div class="pane on" id="pane-login"><input id="li" placeholder="Tên đăng nhập hoặc email"><input id="lp" type="password" placeholder="Mật khẩu"><button class="btn primary" style="width:100%" onclick="login()">ĐĂNG NHẬP</button></div><div class="pane" id="pane-register"><input id="ru" placeholder="Tên đăng nhập"><input id="re" type="email" placeholder="Email"><input id="rp" type="password" placeholder="Mật khẩu từ 8 ký tự"><button class="btn primary" style="width:100%" onclick="register()">TẠO TÀI KHOẢN</button></div></div></div></div>
+<div class="modal" id="notify"><div class="notifybox"><div style="font-size:30px">✦</div><h3 id="notifyTitle">Thông báo</h3><p id="notifyText"></p><button class="btn primary" onclick="closeNotify()">ĐÓNG</button></div></div>
+
+
+<script>
+async function api(url,opt={}){const r=await fetch(url,{credentials:'include',headers:{...(opt.body instanceof FormData?{}:{'Content-Type':'application/json'}),...(opt.headers||{})},...opt});const j=await r.json().catch(()=>({}));if(!r.ok)throw Error(j.error||'Có lỗi xảy ra');return j}
+function money(n){return Number(n||0).toLocaleString('vi-VN')+'đ'}
+async function current(){try{const u=await api('/api/me');document.querySelectorAll('.wallet').forEach(x=>x.classList.remove('guest-hidden'));document.querySelectorAll('[data-balance]').forEach(x=>x.textContent=money(u.balance));const ab=document.getElementById('accountBtn'),uc=document.getElementById('userChip');if(ab)ab.style.display='none';if(uc){uc.style.display='flex';document.getElementById('chipName').textContent=u.username;document.getElementById('chipAvatar').src='/assets/avatars/'+(u.avatar_id||1)+'.svg'}return u}catch{return null}}
+async function goAccount(){const u=await current();if(!u){openAuth();return}location.href='/account.html'}
+function doSearch(){const t=(document.getElementById('q')?.value||'').trim();location.href='/products.html'+(t?'?q='+encodeURIComponent(t):'')}
+function openAuth(){document.getElementById('auth')?.classList.add('open')}function closeAuth(){document.getElementById('auth')?.classList.remove('open')}function authTab(t){document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('on',x.dataset.t===t));document.querySelectorAll('.pane').forEach(x=>x.classList.toggle('on',x.id==='pane-'+t))}
+function notify(msg,type='info',title='Thông báo'){const m=document.getElementById('notify');document.getElementById('notifyTitle').textContent=title;document.getElementById('notifyText').textContent=msg;m.classList.add('open')}function closeNotify(){document.getElementById('notify')?.classList.remove('open')}
+async function login(){try{const r=await api('/api/auth/login',{method:'POST',body:JSON.stringify({identity:li.value,password:lp.value})});location.href=r.redirect}catch(e){notify(e.message,'error','Đăng nhập thất bại')}}
+async function register(){try{await api('/api/auth/register',{method:'POST',body:JSON.stringify({username:ru.value,email:re.value,password:rp.value})});location.href='/account.html'}catch(e){notify(e.message,'error','Đăng ký thất bại')}}
+
+let DASH=null,ME=null;
+function tab(id){document.querySelectorAll('.seller-nav button').forEach(x=>x.classList.toggle('on',x.dataset.tab===id));document.querySelectorAll('.seller-view').forEach(x=>x.classList.toggle('on',x.id===id))}
+function rows(items,empty,renderer){return items.length?items.map(renderer).join(''):`<div class="empty">${empty}</div>`}
+
+async function loadSeller(){
+ ME=await current();if(!ME)return location.href='/?login=1';if(ME.role==='admin')return location.href='/admin.html';
+ if(ME.role!=='seller')return loadApply();
+ DASH=await api('/api/seller/dashboard');
+ const p=DASH.products,o=DASH.orders,a=DASH.auctions,c=DASH.complaints;
+ const selling=p.filter(x=>x.status==='approved').length,sold=p.filter(x=>x.status==='sold').length,pending=p.filter(x=>x.status==='pending').length,activeA=a.filter(x=>x.status==='approved').length;
+ sellerRoot.innerHTML=`<div class="seller-kpis">
+  <div class="panel seller-kpi"><small>ĐƠN HÀNG</small><b>${o.length}</b></div>
+  <div class="panel seller-kpi"><small>ĐANG GIỮ TIỀN</small><b>${o.filter(x=>x.release_status==='held').length}</b></div>
+  <div class="panel seller-kpi"><small>ĐÃ HOÀN TẤT</small><b>${o.filter(x=>x.release_status==='released').length}</b></div>
+  <div class="panel seller-kpi"><small>ĐANG BÁN</small><b>${selling}</b></div>
+  <div class="panel seller-kpi"><small>ĐANG ĐẤU GIÁ</small><b>${activeA}</b></div>
+  <div class="panel seller-kpi"><small>KHIẾU NẠI</small><b>${c.filter(x=>x.status==='open').length}</b></div>
+ </div><div class="seller-shell" style="margin-top:12px">
+ <aside class="panel seller-nav">
+  <button data-tab="overview" class="on" onclick="tab('overview')">▦ TỔNG QUAN</button>
+  <button data-tab="selling" onclick="tab('selling')">◇ ĐANG BÁN</button>
+  <button data-tab="sold" onclick="tab('sold')">✓ ĐÃ BÁN</button>
+  <button data-tab="pending" onclick="tab('pending')">◷ CHỜ DUYỆT</button>
+  <button data-tab="auctions" onclick="tab('auctions')">⌘ ĐẤU GIÁ</button>
+  <button data-tab="orders" onclick="tab('orders')">▤ ĐƠN HÀNG</button>
+  <button data-tab="complaints" onclick="tab('complaints')">♢ KHIẾU NẠI</button>
+  <button data-tab="newproduct" onclick="tab('newproduct')">＋ ĐĂNG TÀI KHOẢN</button>
+  <button data-tab="newauction" onclick="tab('newauction')">＋ TẠO ĐẤU GIÁ</button>
+  <button data-tab="withdraw" onclick="tab('withdraw')">₫ RÚT TIỀN</button>
+ </aside>
+ <section>
+  <div id="overview" class="seller-view on"><div class="panel content"><h2>GIAN HÀNG CỦA TÔI</h2><div class="info-grid"><div class="panel info-card"><small>CÓ THỂ RÚT</small><b>${money(ME.seller_balance)}</b></div><div class="panel info-card"><small>ĐANG GIỮ</small><b>${money(ME.held_balance)}</b></div><div class="panel info-card"><small>TỔNG ĐƠN</small><b>${o.length}</b></div><div class="panel info-card"><small>KHIẾU NẠI MỞ</small><b>${c.filter(x=>x.status==='open').length}</b></div></div><div class="notice" style="margin-top:10px">Tiền đơn hàng được tạm giữ 72 giờ. Nếu có khiếu nại, khoản tiền tiếp tục được giữ đến khi xử lý xong.</div></div></div>
+  <div id="selling" class="seller-view"><div class="panel content"><h2>TÀI KHOẢN ĐANG BÁN</h2>${rows(p.filter(x=>x.status==='approved'),'Chưa có tài khoản đang bán',x=>`<div class="panel content" style="margin-bottom:8px"><b>${x.title}</b> • ${money(x.price)} • ${x.game}</div>`)}</div></div>
+  <div id="sold" class="seller-view"><div class="panel content"><h2>TÀI KHOẢN ĐÃ BÁN</h2>${rows(p.filter(x=>x.status==='sold'),'Chưa có tài khoản đã bán',x=>`<div class="panel content" style="margin-bottom:8px"><b>${x.title}</b> • ${money(x.price)}</div>`)}</div></div>
+  <div id="pending" class="seller-view"><div class="panel content"><h2>ĐANG CHỜ DUYỆT</h2>${rows(p.filter(x=>x.status==='pending'),'Không có tài khoản chờ duyệt',x=>`<div class="panel content" style="margin-bottom:8px"><b>${x.title}</b> • ${money(x.price)}</div>`)}</div></div>
+  <div id="auctions" class="seller-view"><div class="panel content"><h2>QUẢN LÝ ĐẤU GIÁ</h2>${rows(a,'Chưa có phiên đấu giá',x=>`<div class="panel content" style="margin-bottom:8px"><b>${x.title}</b><br><span class="hint">Trạng thái: ${x.status} • Giá hiện tại: ${money(x.current_price)} • Người trả cao nhất: ${x.current_bidder_name||'Chưa có'}</span>${x.status==='approved'&&x.current_bidder?`<div style="margin-top:8px"><button class="btn primary" onclick="closeAuction(${x.id},${x.current_price},'${(x.current_bidder_name||'').replace(/'/g,"")}')">CHỐT GIÁ</button></div>`:''}</div>`)}</div></div>
+  <div id="orders" class="seller-view"><div class="panel content"><div class="section-head" style="margin-top:0"><h2>QUẢN LÝ ĐƠN HÀNG</h2><span id="sellerOrderCount"></span></div><div class="seller-order-filters"><button class="on" data-order="all" onclick="filterSellerOrders('all',this)">TẤT CẢ</button><button data-order="held" onclick="filterSellerOrders('held',this)">ĐANG GIỮ 72H</button><button data-order="released" onclick="filterSellerOrders('released',this)">ĐÃ HOÀN TẤT</button><button data-order="disputed" onclick="filterSellerOrders('disputed',this)">KHIẾU NẠI</button><button data-order="refunded" onclick="filterSellerOrders('refunded',this)">ĐÃ HOÀN TIỀN</button></div><div id="sellerOrdersTable"></div></div></div>
+  <div id="complaints" class="seller-view"><div class="panel content"><h2>KHIẾU NẠI / BẢO HÀNH</h2>${rows(c,'Không có khiếu nại',x=>`<div class="panel content" style="margin-bottom:8px"><b>Đơn #${x.order_id} • ${x.buyer}</b><br><span class="hint">${x.type} • ${x.status}</span><p>${x.description}</p></div>`)}</div></div>
+  <div id="newproduct" class="seller-view"><div class="panel content"><h2>ĐĂNG TÀI KHOẢN MỚI</h2><form id="pf"><div class="row"><select name="game"><option value="lienquan">Liên Quân</option><option value="freefire">Free Fire</option><option value="pubg">PUBG</option><option value="lol">Liên Minh Huyền Thoại</option><option value="khac">Game khác</option></select><input name="price" type="number" placeholder="Giá bán" required></div><input name="title" placeholder="Tên tài khoản" required><textarea name="description" placeholder="Mô tả chi tiết" required></textarea><div class="row"><input name="account_login" placeholder="Tài khoản game" required><input name="account_password" placeholder="Mật khẩu game" required></div><div class="row"><input name="warranty_days" type="number" value="3" min="0" max="365"><input name="image" type="file" accept="image/jpeg,image/png,image/webp"></div><button class="btn primary">GỬI DUYỆT</button></form></div></div>
+  <div id="newauction" class="seller-view"><div class="panel content"><h2>TẠO PHIÊN ĐẤU GIÁ</h2><form id="af"><div class="row"><select name="game"><option value="lienquan">Liên Quân</option><option value="freefire">Free Fire</option><option value="pubg">PUBG</option><option value="lol">Liên Minh Huyền Thoại</option><option value="khac">Game khác</option></select><input name="hours" type="number" value="24" min="1" max="168"></div><input name="title" placeholder="Tên tài khoản đấu giá" required><textarea name="description" placeholder="Mô tả" required></textarea><div class="row"><input name="start_price" type="number" placeholder="Giá khởi điểm" required><input name="bid_step" type="number" placeholder="Bước giá" required></div><div class="row"><input name="account_login" placeholder="Tài khoản game" required><input name="account_password" placeholder="Mật khẩu game" required></div><input name="image" type="file" accept="image/jpeg,image/png,image/webp"><button class="btn primary">GỬI DUYỆT ĐẤU GIÁ</button></form></div></div>
+  <div id="withdraw" class="seller-view"><div class="panel content"><h2>RÚT TIỀN</h2><div class="row"><input id="wa" type="number" placeholder="Số tiền"><input id="wb" placeholder="Ngân hàng"></div><div class="row"><input id="wn" placeholder="Số tài khoản"><input id="wname" placeholder="Tên chủ tài khoản"></div><button class="btn primary" onclick="withdraw()">GỬI YÊU CẦU</button></div></div>
+ </section></div>`;
+ bindForms();renderSellerOrders();
+}
+
+function orderStateLabel(x){const map={held:'Đang giữ 72 giờ',released:'Đã hoàn tất',disputed:'Đang khiếu nại',refunded:'Đã hoàn tiền'};return map[x]||x}
+function renderSellerOrders(state='all'){
+ const all=(DASH&&DASH.orders)||[],rows=state==='all'?all:all.filter(x=>x.release_status===state);
+ const count=document.getElementById('sellerOrderCount');if(count)count.textContent=rows.length+' đơn';
+ const box=document.getElementById('sellerOrdersTable');if(!box)return;
+ if(!rows.length){box.innerHTML='<div class="empty">Không có đơn hàng ở trạng thái này</div>';return}
+ box.innerHTML=`<div style="overflow:auto"><table class="seller-table"><tr><th>MÃ ĐƠN</th><th>TÀI KHOẢN</th><th>NGƯỜI MUA</th><th>GIÁ TRỊ</th><th>TIỀN NHẬN</th><th>TRẠNG THÁI</th><th>NGÀY</th></tr>${rows.map(x=>`<tr><td><b>#${x.id}</b></td><td>${x.title}</td><td>${x.buyer}</td><td>${money(x.amount)}</td><td>${money(x.seller_net)}</td><td><span class="status-chip status-${x.release_status}">${orderStateLabel(x.release_status)}</span></td><td>${new Date(x.created_at).toLocaleString('vi-VN')}</td></tr>`).join('')}</table></div>`
+}
+function filterSellerOrders(state,btn){document.querySelectorAll('.seller-order-filters button').forEach(x=>x.classList.remove('on'));btn?.classList.add('on');renderSellerOrders(state)}
+
+function bindForms(){document.getElementById('pf')?.addEventListener('submit',async e=>{e.preventDefault();try{await api('/api/products',{method:'POST',body:new FormData(e.target)});notify('Đã gửi tài khoản chờ duyệt','success','Thành công');loadSeller()}catch(x){notify(x.message,'error','Không thể đăng')}});document.getElementById('af')?.addEventListener('submit',async e=>{e.preventDefault();try{await api('/api/auctions',{method:'POST',body:new FormData(e.target)});notify('Đã gửi phiên đấu giá chờ duyệt','success','Thành công');loadSeller()}catch(x){notify(x.message,'error','Không thể tạo đấu giá')}})}
+let CLOSE_AUCTION_ID=0;
+function closeAuction(id,amount,bidder){CLOSE_AUCTION_ID=id;document.getElementById('sellerCloseText').textContent='Giá hiện tại: '+money(amount)+' • Người trả cao nhất: '+bidder;document.getElementById('sellerCloseDialog').classList.add('open')}
+async function confirmSellerClose(){try{await api('/api/auctions/'+CLOSE_AUCTION_ID+'/close',{method:'POST'});sellerCloseDialog.classList.remove('open');notify('Đã chốt phiên đấu giá','success','Thành công');loadSeller()}catch(e){notify(e.message,'error','Không thể chốt')}}
+async function withdraw(){try{await api('/api/withdrawals',{method:'POST',body:JSON.stringify({amount:Number(wa.value),bank:wb.value,account_no:wn.value,account_name:wname.value})});notify('Đã gửi yêu cầu rút','success','Thành công')}catch(e){notify(e.message,'error','Không thể rút')}}
+async function loadApply(){const st=await api('/api/seller/status');if(st){sellerRoot.innerHTML=`<div class="panel content"><h2>HỒ SƠ NGƯỜI BÁN</h2><div class="notice">Trạng thái: <b>${st.status}</b><br>${st.admin_note||'Hồ sơ đang được kiểm tra.'}</div></div>`;return}sellerRoot.innerHTML=`<div class="panel content"><h2>ĐĂNG KÝ NGƯỜI BÁN</h2><div class="rules"><b>QUY ĐỊNH NGƯỜI BÁN</b><br>Phải mô tả đúng tài khoản, không gian lận, không bán trùng, không lôi kéo giao dịch ngoài hệ thống và phải phối hợp khi có khiếu nại. Người bán tự chịu trách nhiệm đối với hành vi vi phạm do mình thực hiện.</div><form id="sf"><div class="row"><input name="full_name" placeholder="Họ và tên" required><input name="phone" placeholder="Số điện thoại" required></div><div class="row"><input name="cccd_front" type="file" accept="image/*" required><input name="cccd_back" type="file" accept="image/*" required></div><label class="checkline"><input id="agree" type="checkbox"> Tôi đã đọc và đồng ý quy định</label><button class="btn primary">GỬI HỒ SƠ</button></form></div>`;sf.addEventListener('submit',async e=>{e.preventDefault();if(!agree.checked)return notify('Bạn phải đồng ý quy định','warn','Chưa đồng ý');const fd=new FormData(e.target);fd.append('accept_rules','true');try{await api('/api/seller/apply',{method:'POST',body:fd});loadSeller()}catch(x){notify(x.message,'error','Không thể gửi hồ sơ')}})}
+loadSeller();
+</script></body></html>

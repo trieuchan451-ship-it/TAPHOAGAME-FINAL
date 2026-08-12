@@ -64,6 +64,11 @@ async function ledger(client,userId,kind,amount,refType,refId,note=''){
   await client.query(`INSERT INTO wallet_ledger(user_id,kind,amount,ref_type,ref_id,note) VALUES($1,$2,$3,$4,$5,$6)`,
     [userId,kind,amount,refType||'',refId?String(refId):'',note]);
 }
+
+async function notifyUser(client,userId,type,title,body='',link=''){
+  await client.query(`INSERT INTO notifications(user_id,type,title,body,link) VALUES($1,$2,$3,$4,$5)`,
+    [userId,type||'info',String(title||'Thông báo').slice(0,160),String(body||'').slice(0,1000),String(link||'').slice(0,500)]);
+}
 async function initDb(){
  await pool.query(`
  CREATE TABLE IF NOT EXISTS users(
@@ -89,6 +94,27 @@ async function initDb(){
 
  ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_id INT DEFAULT 1;
  ALTER TABLE users ADD COLUMN IF NOT EXISTS chat_muted BOOLEAN DEFAULT FALSE;
+
+ ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version INT NOT NULL DEFAULT 0;
+ CREATE TABLE IF NOT EXISTS notifications(
+   id BIGSERIAL PRIMARY KEY,
+   user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+   type VARCHAR(40) NOT NULL DEFAULT 'info',
+   title VARCHAR(160) NOT NULL,
+   body TEXT NOT NULL DEFAULT '',
+   link TEXT DEFAULT '',
+   read_at TIMESTAMPTZ,
+   created_at TIMESTAMPTZ DEFAULT NOW()
+ );
+ CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id,created_at DESC);
+ CREATE TABLE IF NOT EXISTS login_events(
+   id BIGSERIAL PRIMARY KEY,
+   user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+   ip VARCHAR(120) DEFAULT '',
+   user_agent TEXT DEFAULT '',
+   created_at TIMESTAMPTZ DEFAULT NOW()
+ );
+
  CREATE TABLE IF NOT EXISTS community_messages(
    id SERIAL PRIMARY KEY,user_id INT REFERENCES users(id) ON DELETE CASCADE,
    body TEXT NOT NULL,created_at TIMESTAMPTZ DEFAULT NOW()
@@ -130,6 +156,19 @@ async function initDb(){
  ALTER TABLE products DROP CONSTRAINT IF EXISTS products_game_check;
  ALTER TABLE products ADD CONSTRAINT products_game_check CHECK(game IN ('lienquan','freefire','pubg','lol','khac'));
 
+
+ CREATE TABLE IF NOT EXISTS favorites(
+   user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+   product_id BIGINT NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+   created_at TIMESTAMPTZ DEFAULT NOW(),
+   PRIMARY KEY(user_id,product_id)
+ );
+ CREATE TABLE IF NOT EXISTS recently_viewed(
+   user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+   product_id BIGINT NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+   last_viewed TIMESTAMPTZ DEFAULT NOW(),
+   PRIMARY KEY(user_id,product_id)
+ );
  CREATE TABLE IF NOT EXISTS orders(
    id BIGSERIAL PRIMARY KEY,
    buyer_id BIGINT NOT NULL REFERENCES users(id),
@@ -146,6 +185,16 @@ async function initDb(){
  ALTER TABLE orders ADD COLUMN IF NOT EXISTS hold_until TIMESTAMPTZ NOT NULL DEFAULT (NOW()+INTERVAL '72 hours');
  ALTER TABLE orders ADD COLUMN IF NOT EXISTS released_at TIMESTAMPTZ;
 
+
+ CREATE TABLE IF NOT EXISTS seller_reviews(
+   id BIGSERIAL PRIMARY KEY,
+   order_id BIGINT UNIQUE NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+   buyer_id BIGINT NOT NULL REFERENCES users(id),
+   seller_id BIGINT NOT NULL REFERENCES users(id),
+   rating INT NOT NULL CHECK(rating BETWEEN 1 AND 5),
+   comment TEXT DEFAULT '',
+   created_at TIMESTAMPTZ DEFAULT NOW()
+ );
  CREATE TABLE IF NOT EXISTS complaints(
    id BIGSERIAL PRIMARY KEY,
    order_id BIGINT NOT NULL REFERENCES orders(id),
@@ -290,16 +339,17 @@ async function releaseMatured(){
  }catch(e){await c.query('ROLLBACK');console.error('releaseMatured',e.message)}finally{c.release()}
 }
 
-function sign(u){return jwt.sign({id:u.id,role:u.role},JWT_SECRET,{expiresIn:'12h'})}
+function sign(u){return jwt.sign({id:u.id,role:u.role,tv:Number(u.token_version||0)},JWT_SECRET,{expiresIn:'12h'})}
 function session(res,u){res.cookie('tg_session',sign(u),{httpOnly:true,secure:process.env.NODE_ENV==='production',sameSite:'lax',maxAge:12*60*60*1000})}
 async function auth(req,res,next){
  try{
    const t=req.cookies.tg_session;
    if(!t)return res.status(401).json({error:'Bạn chưa đăng nhập'});
    const p=jwt.verify(t,JWT_SECRET);
-   const q=await pool.query(`SELECT id,username,email,role,status,phone,seller_verification,balance,seller_balance,held_balance,created_at,avatar_id,chat_muted FROM users WHERE id=$1`,[p.id]);
+   const q=await pool.query(`SELECT id,username,email,role,status,phone,seller_verification,balance,seller_balance,held_balance,created_at,avatar_id,chat_muted,token_version FROM users WHERE id=$1`,[p.id]);
    if(!q.rowCount)return res.status(401).json({error:'Phiên đăng nhập không hợp lệ'});
    if(q.rows[0].status!=='active')return res.status(403).json({error:'Tài khoản đang bị khóa'});
+   if(Number(p.tv||0)!==Number(q.rows[0].token_version||0))return res.status(401).json({error:'Phiên đăng nhập đã hết hiệu lực'});
    req.user=q.rows[0]; pool.query(`UPDATE users SET last_seen_at=NOW() WHERE id=$1`,[req.user.id]).catch(()=>{}); next();
  }catch{return res.status(401).json({error:'Phiên đăng nhập đã hết hạn'})}
 }
@@ -332,6 +382,7 @@ app.post('/api/auth/login',authLimiter,async(req,res)=>{
  const u=q.rows[0];
  if(!u||!(await bcrypt.compare(password,u.password_hash)))return res.status(401).json({error:'Sai tài khoản hoặc mật khẩu'});
  if(u.status!=='active')return res.status(403).json({error:'Tài khoản đang bị khóa'});
+ await pool.query(`INSERT INTO login_events(user_id,ip,user_agent) VALUES($1,$2,$3)`,[u.id,ip,String(req.headers['user-agent']||'').slice(0,500)]);
  await pool.query(`UPDATE users SET last_login_ip=$1,last_seen_at=NOW() WHERE id=$2`,[ip,u.id]);
  session(res,u);
  res.json({ok:true,role:u.role,redirect:u.role==='admin'?'/admin.html':u.role==='seller'?'/seller.html':'/account.html'});
@@ -343,22 +394,31 @@ app.get('/api/seller/status',auth,async(req,res)=>{
  const q=await pool.query(`SELECT id,status,admin_note,accepted_rules,created_at FROM seller_applications WHERE user_id=$1`,[req.user.id]);res.json(q.rows[0]||null);
 });
 app.post('/api/seller/apply',auth,upload.fields([{name:'cccd_front',maxCount:1},{name:'cccd_back',maxCount:1}]),async(req,res)=>{
- if(req.user.role!=='member')return res.status(400).json({error:'Tài khoản này không thể đăng ký seller'});
+ if(req.user.role!=='member')return res.status(400).json({error:'Tài khoản này không thể đăng ký người bán'});
  if(String(req.body.accept_rules)!=='true')return res.status(400).json({error:'Bạn phải đọc và đồng ý quy định dành cho người bán'});
  const fullName=String(req.body.full_name||'').trim(),phone=String(req.body.phone||'').trim();
  if(!fullName||!phone||!req.files?.cccd_front?.[0]||!req.files?.cccd_back?.[0])return res.status(400).json({error:'Thiếu hồ sơ người bán'});
- try{
+ const prev=(await pool.query(`SELECT * FROM seller_applications WHERE user_id=$1`,[req.user.id])).rows[0];
+ if(prev&&['pending','approved'].includes(prev.status))return res.status(409).json({error:'Bạn đã có hồ sơ đang xử lý hoặc đã được duyệt'});
+ const front=req.files.cccd_front[0].filename,back=req.files.cccd_back[0].filename;
+ if(prev){
+   await pool.query(`UPDATE seller_applications SET full_name=$1,phone=$2,cccd_front=$3,cccd_back=$4,accepted_rules=TRUE,status='pending',admin_note='',updated_at=NOW() WHERE user_id=$5`,
+     [fullName,phone,front,back,req.user.id]);
+ }else{
    await pool.query(`INSERT INTO seller_applications(user_id,full_name,phone,cccd_front,cccd_back,accepted_rules) VALUES($1,$2,$3,$4,$5,TRUE)`,
-     [req.user.id,fullName,phone,req.files.cccd_front[0].filename,req.files.cccd_back[0].filename]);
-   await pool.query(`UPDATE users SET seller_verification='pending' WHERE id=$1`,[req.user.id]);
-   res.json({ok:true});
- }catch{return res.status(409).json({error:'Bạn đã gửi hồ sơ trước đó'})}
+     [req.user.id,fullName,phone,front,back]);
+ }
+ await pool.query(`UPDATE users SET seller_verification='pending' WHERE id=$1`,[req.user.id]);
+ res.json({ok:true});
 });
 
 app.get('/api/products',async(req,res)=>{
  const vals=[];let where=`p.status='approved' AND u.status='active'`;
  if(req.query.game){vals.push(req.query.game);where+=` AND p.game=$${vals.length}`}
- const q=await pool.query(`SELECT p.id,p.game,p.title,p.description,p.price,p.image,p.warranty_days,p.created_at,u.id seller_id,u.username seller
+ const q=await pool.query(`SELECT p.id,p.game,p.title,p.description,p.price,p.image,p.warranty_days,p.created_at,u.id seller_id,u.username seller,
+ COALESCE((SELECT ROUND(AVG(sr.rating)::numeric,1) FROM seller_reviews sr WHERE sr.seller_id=u.id),0) seller_rating,
+ COALESCE((SELECT COUNT(*) FROM seller_reviews sr WHERE sr.seller_id=u.id),0) seller_reviews,
+ COALESCE((SELECT COUNT(*) FROM orders oo WHERE oo.seller_id=u.id),0) seller_sales
  FROM products p JOIN users u ON u.id=p.seller_id WHERE ${where} ORDER BY p.id DESC`,vals);res.json(q.rows);
 });
 app.post('/api/products',auth,seller,upload.single('image'),async(req,res)=>{
@@ -384,6 +444,7 @@ app.post('/api/orders/:id/buy',auth,async(req,res)=>{
   const o=await c.query(`INSERT INTO orders(buyer_id,seller_id,product_id,amount,fee,seller_net,release_status,hold_until) VALUES($1,$2,$3,$4,$5,$6,'held',NOW()+INTERVAL '72 hours') RETURNING id,hold_until`,
     [b.id,p.seller_id,p.id,p.price,fee,net]);
   await c.query(`UPDATE products SET status='sold' WHERE id=$1`,[p.id]);
+  await notifyUser(c,p.seller_id,'order','Bạn có đơn hàng mới','Tài khoản '+p.title+' vừa được mua. Tiền đang được giữ 72 giờ.','/seller.html');
   await ledger(c,b.id,'BUY',-Number(p.price),'order',o.rows[0].id,'Mua acc');
   await ledger(c,p.seller_id,'HOLD_IN',net,'order',o.rows[0].id,'Tiền tạm giữ 72 giờ');
   await audit(c,b.id,'BUY_PRODUCT','product',p.id,{order:o.rows[0].id});
@@ -414,6 +475,7 @@ app.post('/api/complaints',auth,async(req,res)=>{
    const x=await c.query(`INSERT INTO complaints(order_id,buyer_id,seller_id,type,description,evidence) VALUES($1,$2,$3,$4,$5,$6) RETURNING id`,
       [orderId,req.user.id,o.seller_id,type,description,String(req.body.evidence||'').slice(0,1200)]);
    await audit(c,req.user.id,'OPEN_COMPLAINT','order',orderId,{complaint:x.rows[0].id});
+   await notifyUser(c,o.seller_id,'complaint','Bạn có khiếu nại mới','Người mua đã mở khiếu nại cho đơn #'+orderId+'.','/seller.html');
    await c.query('COMMIT');res.json({ok:true,id:x.rows[0].id});
  }catch(e){await c.query('ROLLBACK');res.status(400).json({error:e.message})}finally{c.release()}
 });
@@ -428,14 +490,23 @@ app.post('/api/deposits',auth,async(req,res)=>{
  res.json({...row,payment_memo:memo,bank:{name:'MB Bank',account:'11042004102005',accountName:'TRIEU CHOI CHAN'}});
 });
 app.get('/api/deposits/mine',auth,async(req,res)=>res.json((await pool.query(`SELECT * FROM deposits WHERE user_id=$1 ORDER BY id DESC`,[req.user.id])).rows));
+
+app.post('/api/deposits/:id/cancel',auth,async(req,res)=>{
+ const q=await pool.query(`UPDATE deposits SET status='cancelled' WHERE id=$1 AND user_id=$2 AND status='pending' RETURNING id`,[Number(req.params.id),req.user.id]);
+ if(!q.rowCount)return res.status(400).json({error:'Yêu cầu nạp không thể hủy'});
+ res.json({ok:true});
+});
 app.post('/api/payments/webhook',async(req,res)=>{
  if(!process.env.PAYMENT_WEBHOOK_SECRET||req.headers['x-webhook-secret']!==process.env.PAYMENT_WEBHOOK_SECRET)return res.status(401).json({error:'Webhook không hợp lệ'});
  if(req.body.status!=='paid')return res.json({ok:true});
  const c=await pool.connect();
  try{
    await c.query('BEGIN');
-   const d=(await c.query(`SELECT * FROM deposits WHERE transfer_code=$1 FOR UPDATE`,[req.body.transfer_code])).rows[0];
+   const ref=String(req.body.transfer_code||req.body.payment_memo||req.body.description||'').trim();
+   let d=(await c.query(`SELECT * FROM deposits WHERE transfer_code=$1 AND status='pending' FOR UPDATE`,[ref])).rows[0];
+   if(!d)d=(await c.query(`SELECT * FROM deposits WHERE payment_memo=$1 AND status='pending' ORDER BY id DESC LIMIT 1 FOR UPDATE`,[ref])).rows[0];
    if(!d||d.status==='paid'){await c.query('ROLLBACK');return res.json({ok:true})}
+   if(req.body.amount!==undefined&&Number(req.body.amount)!==Number(d.amount))throw Error('Số tiền giao dịch không khớp');
    if(!req.body.provider_ref)throw Error('Thiếu mã giao dịch');
    const dup=await c.query(`SELECT 1 FROM deposits WHERE provider_ref=$1`,[String(req.body.provider_ref)]);
    if(dup.rowCount)throw Error('Giao dịch đã được xử lý');
@@ -536,6 +607,57 @@ app.get('/api/seller/dashboard',auth,seller,async(req,res)=>{
  res.json({summary,products:pr,orders:od,auctions:au,complaints:cp,withdrawals:withdrawals.rows});
 });
 
+
+
+app.get('/api/favorites',auth,async(req,res)=>res.json((await pool.query(`SELECT product_id FROM favorites WHERE user_id=$1 ORDER BY created_at DESC`,[req.user.id])).rows.map(x=>Number(x.product_id))));
+app.post('/api/favorites/:id',auth,async(req,res)=>{await pool.query(`INSERT INTO favorites(user_id,product_id) VALUES($1,$2) ON CONFLICT DO NOTHING`,[req.user.id,Number(req.params.id)]);res.json({ok:true})});
+app.delete('/api/favorites/:id',auth,async(req,res)=>{await pool.query(`DELETE FROM favorites WHERE user_id=$1 AND product_id=$2`,[req.user.id,Number(req.params.id)]);res.json({ok:true})});
+app.post('/api/recently-viewed/:id',auth,async(req,res)=>{await pool.query(`INSERT INTO recently_viewed(user_id,product_id,last_viewed) VALUES($1,$2,NOW()) ON CONFLICT(user_id,product_id) DO UPDATE SET last_viewed=NOW()`,[req.user.id,Number(req.params.id)]);res.json({ok:true})});
+app.get('/api/recently-viewed',auth,async(req,res)=>{
+ const q=await pool.query(`SELECT p.id,p.title,p.game,p.price,p.image,r.last_viewed FROM recently_viewed r JOIN products p ON p.id=r.product_id WHERE r.user_id=$1 ORDER BY r.last_viewed DESC LIMIT 12`,[req.user.id]);res.json(q.rows)
+});
+app.get('/api/me/wallet-ledger',auth,async(req,res)=>res.json((await pool.query(`SELECT kind,amount,ref_type,ref_id,note,created_at FROM wallet_ledger WHERE user_id=$1 ORDER BY id DESC LIMIT 100`,[req.user.id])).rows));
+
+app.get('/api/notifications',auth,async(req,res)=>{
+ const q=await pool.query(`SELECT id,type,title,body,link,read_at,created_at FROM notifications WHERE user_id=$1 ORDER BY id DESC LIMIT 100`,[req.user.id]);
+ res.json(q.rows);
+});
+app.post('/api/notifications/read-all',auth,async(req,res)=>{await pool.query(`UPDATE notifications SET read_at=COALESCE(read_at,NOW()) WHERE user_id=$1`,[req.user.id]);res.json({ok:true})});
+app.get('/api/me/login-history',auth,async(req,res)=>res.json((await pool.query(`SELECT ip,user_agent,created_at FROM login_events WHERE user_id=$1 ORDER BY id DESC LIMIT 30`,[req.user.id])).rows));
+app.post('/api/me/logout-all',auth,async(req,res)=>{await pool.query(`UPDATE users SET token_version=token_version+1 WHERE id=$1`,[req.user.id]);res.clearCookie('tg_session');res.json({ok:true})});
+
+app.post('/api/orders/:id/review',auth,async(req,res)=>{
+ const id=Number(req.params.id),rating=Number(req.body.rating),comment=String(req.body.comment||'').trim().slice(0,800);
+ if(!Number.isInteger(rating)||rating<1||rating>5)return res.status(400).json({error:'Số sao không hợp lệ'});
+ const o=(await pool.query(`SELECT id,buyer_id,seller_id FROM orders WHERE id=$1 AND buyer_id=$2`,[id,req.user.id])).rows[0];
+ if(!o)return res.status(404).json({error:'Không tìm thấy đơn hàng'});
+ try{await pool.query(`INSERT INTO seller_reviews(order_id,buyer_id,seller_id,rating,comment) VALUES($1,$2,$3,$4,$5)`,[o.id,req.user.id,o.seller_id,rating,comment]);res.json({ok:true})}
+ catch{return res.status(409).json({error:'Đơn hàng này đã được đánh giá'})}
+});
+app.get('/api/sellers/:id/reputation',async(req,res)=>{
+ const id=Number(req.params.id);
+ const [r,s]=await Promise.all([
+  pool.query(`SELECT COALESCE(ROUND(AVG(rating)::numeric,1),0) rating,COUNT(*)::int reviews FROM seller_reviews WHERE seller_id=$1`,[id]),
+  pool.query(`SELECT COUNT(*)::int sold FROM orders WHERE seller_id=$1`,[id])
+ ]);
+ res.json({rating:Number(r.rows[0].rating||0),reviews:r.rows[0].reviews,sold:s.rows[0].sold});
+});
+
+app.get('/api/admin/alerts',auth,admin,async(req,res)=>{
+ const [sellerApps,complaints,held,largeDeps]=await Promise.all([
+  pool.query(`SELECT COUNT(*)::int n FROM seller_applications WHERE status='pending'`),
+  pool.query(`SELECT COUNT(*)::int n FROM complaints WHERE status='open'`),
+  pool.query(`SELECT COUNT(*)::int n FROM orders WHERE release_status='held' AND hold_until<NOW()`),
+  pool.query(`SELECT COUNT(*)::int n FROM deposits WHERE status='pending' AND amount>=1000000`)
+ ]);
+ res.json([
+  {level:'info',title:'Hồ sơ người bán chờ duyệt',count:sellerApps.rows[0].n,target:'sellerApps'},
+  {level:'danger',title:'Khiếu nại đang mở',count:complaints.rows[0].n,target:'complaints'},
+  {level:'warn',title:'Đơn giữ tiền quá hạn',count:held.rows[0].n,target:'money'},
+  {level:'warn',title:'Yêu cầu nạp từ 1 triệu đang chờ',count:largeDeps.rows[0].n,target:'money'}
+ ]);
+});
+
 /* ADMIN */
 
 app.post('/api/me/avatar',auth,async(req,res)=>{const avatar_id=Number(req.body.avatar_id);if(!Number.isInteger(avatar_id)||avatar_id<1||avatar_id>20)return res.status(400).json({error:'Avatar không hợp lệ'});await pool.query(`UPDATE users SET avatar_id=$1 WHERE id=$2`,[avatar_id,req.user.id]);res.json({ok:true,avatar_id})});
@@ -603,13 +725,13 @@ app.delete('/api/admin/users/:id',auth,admin,async(req,res)=>{
  if(Number(refs.rows[0].c)>0)return res.status(400).json({error:'Tài khoản đã có giao dịch. Hãy khóa thay vì xóa để giữ lịch sử.'});
  await pool.query(`DELETE FROM seller_applications WHERE user_id=$1`,[id]);await pool.query(`DELETE FROM users WHERE id=$1`,[id]);res.json({ok:true});
 });
-app.get('/api/admin/seller-applications',auth,admin,async(req,res)=>res.json((await pool.query(`SELECT a.*,u.username,u.email FROM seller_applications a JOIN users u ON u.id=a.user_id WHERE a.status='pending' ORDER BY a.id`)).rows));
+app.get('/api/admin/seller-applications',auth,admin,async(req,res)=>res.json((await pool.query(`SELECT a.*,u.username,u.email FROM seller_applications a JOIN users u ON u.id=a.user_id ORDER BY CASE WHEN a.status='pending' THEN 0 ELSE 1 END,a.id DESC`)).rows));
 app.post('/api/admin/seller-applications/:id/approve',auth,admin,async(req,res)=>{
- const c=await pool.connect();try{await c.query('BEGIN');const a=(await c.query(`SELECT * FROM seller_applications WHERE id=$1 FOR UPDATE`,[req.params.id])).rows[0];if(!a||!a.accepted_rules)throw Error('Hồ sơ không hợp lệ');await c.query(`UPDATE seller_applications SET status='approved',updated_at=NOW() WHERE id=$1`,[a.id]);await c.query(`UPDATE users SET role='seller',seller_verification='verified' WHERE id=$1`,[a.user_id]);await audit(c,req.user.id,'APPROVE_SELLER','user',a.user_id,{});await c.query('COMMIT');res.json({ok:true})}catch(e){await c.query('ROLLBACK');res.status(400).json({error:e.message})}finally{c.release()}
+ const c=await pool.connect();try{await c.query('BEGIN');const a=(await c.query(`SELECT * FROM seller_applications WHERE id=$1 FOR UPDATE`,[req.params.id])).rows[0];if(!a||!a.accepted_rules)throw Error('Hồ sơ không hợp lệ');await c.query(`UPDATE seller_applications SET status='approved',updated_at=NOW() WHERE id=$1`,[a.id]);await c.query(`UPDATE users SET role='seller',seller_verification='verified' WHERE id=$1`,[a.user_id]);await audit(c,req.user.id,'APPROVE_SELLER','user',a.user_id,{});await notifyUser(c,a.user_id,'seller','Hồ sơ người bán đã được duyệt','Bạn đã có thể sử dụng Trung tâm người bán.','/seller.html');await c.query('COMMIT');res.json({ok:true})}catch(e){await c.query('ROLLBACK');res.status(400).json({error:e.message})}finally{c.release()}
 });
 app.post('/api/admin/seller-applications/:id/reject',auth,admin,async(req,res)=>{
  const a=(await pool.query(`SELECT * FROM seller_applications WHERE id=$1`,[req.params.id])).rows[0];if(!a)return res.status(404).json({error:'Không tìm thấy'});
- await pool.query(`UPDATE seller_applications SET status='rejected',admin_note=$1,updated_at=NOW() WHERE id=$2`,[String(req.body.note||''),a.id]);await pool.query(`UPDATE users SET seller_verification='rejected' WHERE id=$1`,[a.user_id]);res.json({ok:true});
+ await pool.query(`UPDATE seller_applications SET status='rejected',admin_note=$1,updated_at=NOW() WHERE id=$2`,[String(req.body.note||''),a.id]);await pool.query(`UPDATE users SET seller_verification='rejected' WHERE id=$1`,[a.user_id]);await notifyUser(pool,a.user_id,'seller','Hồ sơ người bán chưa được duyệt',String(req.body.note||'Vui lòng kiểm tra và gửi lại hồ sơ.'),'/seller.html');res.json({ok:true});
 });
 app.get('/api/admin/products',auth,admin,async(req,res)=>res.json((await pool.query(`SELECT p.id,p.title,p.game,p.price,p.status,p.created_at,u.username seller FROM products p JOIN users u ON u.id=p.seller_id ORDER BY p.id DESC LIMIT 500`)).rows));
 app.post('/api/admin/products/:id/approve',auth,admin,async(req,res)=>{await pool.query(`UPDATE products SET status='approved' WHERE id=$1 AND status='pending'`,[req.params.id]);res.json({ok:true})});
@@ -640,7 +762,15 @@ app.post('/api/admin/complaints/:id/resolve',auth,admin,async(req,res)=>{
 });
 app.get('/api/admin/deposits',auth,admin,async(req,res)=>res.json((await pool.query(`SELECT d.*,u.username,u.email FROM deposits d JOIN users u ON u.id=d.user_id ORDER BY d.id DESC LIMIT 500`)).rows));
 app.post('/api/admin/deposits/:id/approve',auth,admin,async(req,res)=>{
- const c=await pool.connect();try{await c.query('BEGIN');const d=(await c.query(`SELECT * FROM deposits WHERE id=$1 FOR UPDATE`,[req.params.id])).rows[0];if(!d||d.status!=='pending')throw Error('Giao dịch không hợp lệ');await c.query(`UPDATE deposits SET status='paid',provider_ref=$1,paid_at=NOW() WHERE id=$2`,['ADMIN-'+Date.now(),d.id]);await c.query(`UPDATE users SET balance=balance+$1 WHERE id=$2`,[d.amount,d.user_id]);await ledger(c,d.user_id,'DEPOSIT',Number(d.amount),'deposit',d.id,'Admin xác nhận tiền vào');await c.query('COMMIT');res.json({ok:true})}catch(e){await c.query('ROLLBACK');res.status(400).json({error:e.message})}finally{c.release()}
+ const c=await pool.connect();try{await c.query('BEGIN');const d=(await c.query(`SELECT * FROM deposits WHERE id=$1 FOR UPDATE`,[req.params.id])).rows[0];if(!d||d.status!=='pending')throw Error('Giao dịch không hợp lệ');await c.query(`UPDATE deposits SET status='paid',provider_ref=$1,paid_at=NOW() WHERE id=$2`,['ADMIN-'+Date.now(),d.id]);await c.query(`UPDATE users SET balance=balance+$1 WHERE id=$2`,[d.amount,d.user_id]);await ledger(c,d.user_id,'DEPOSIT',Number(d.amount),'deposit',d.id,'Admin xác nhận tiền vào');
+ await notifyUser(c,d.user_id,'deposit','Nạp tiền thành công','Đã cộng '+Number(d.amount).toLocaleString('vi-VN')+'đ vào số dư.','/deposit.html');await c.query('COMMIT');res.json({ok:true})}catch(e){await c.query('ROLLBACK');res.status(400).json({error:e.message})}finally{c.release()}
+});
+
+app.post('/api/admin/deposits/:id/reject',auth,admin,async(req,res)=>{
+ const q=await pool.query(`UPDATE deposits SET status='cancelled' WHERE id=$1 AND status='pending' RETURNING user_id,amount`,[Number(req.params.id)]);
+ if(!q.rowCount)return res.status(400).json({error:'Yêu cầu nạp không thể hủy'});
+ await notifyUser(pool,q.rows[0].user_id,'deposit','Yêu cầu nạp đã được hủy','Yêu cầu nạp '+Number(q.rows[0].amount).toLocaleString('vi-VN')+'đ đã được hủy.','/deposit.html');
+ res.json({ok:true});
 });
 app.get('/api/admin/withdrawals',auth,admin,async(req,res)=>res.json((await pool.query(`SELECT w.*,u.username FROM withdrawals w JOIN users u ON u.id=w.seller_id ORDER BY w.id DESC LIMIT 500`)).rows));
 app.post('/api/admin/withdrawals/:id/approve',auth,admin,async(req,res)=>{const q=await pool.query(`UPDATE withdrawals SET status='paid',processed_at=NOW(),admin_note=$1 WHERE id=$2 AND status='pending' RETURNING *`,[String(req.body.note||''),req.params.id]);if(!q.rowCount)return res.status(400).json({error:'Yêu cầu không hợp lệ'});res.json({ok:true})});

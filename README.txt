@@ -120,3 +120,14 @@ V65 ADMIN + SELLER + HOME
 - 4 kho nổi bật Liên Quân / Free Fire / PUBG / Liên Minh luôn hiện kể cả 0 tài khoản.
 - Hỗ trợ game Liên Minh bằng mã lol.
 - Banner trang chủ có video nền Liên Quân loop nhẹ, không dùng khối CSS giả.
+
+V68 FULL UPGRADE
+- Sửa và bổ sung duyệt hồ sơ người bán; cho gửi lại hồ sơ bị từ chối.
+- Thành viên/Admin có thể hủy yêu cầu nạp còn pending.
+- Video banner có fallback ảnh khi lỗi/autoplay bị chặn.
+- Bỏ CHAT ADMIN khỏi menu riêng; chuyển chat nội bộ vào Tiện ích hỗ trợ cùng Telegram/Facebook/điện thoại.
+- Thêm thông báo tài khoản, lịch sử đăng nhập, đăng xuất mọi thiết bị.
+- Thêm đánh giá/uy tín người bán và hiển thị rating/số đơn.
+- Thêm cảnh báo hệ thống cho Admin.
+- Yêu thích đồng bộ database, tài khoản đã xem gần đây, lịch sử biến động ví.
+- Webhook thanh toán generic có thể nhận fixed memo và kiểm tra số tiền; muốn tự động thực tế vẫn cần cấu hình nhà cung cấp webhook/API.
