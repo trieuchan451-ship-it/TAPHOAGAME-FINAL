@@ -12,3 +12,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-s
 .card h2{font-size:16px;font-weight:700;letter-spacing:-.2px}.stat small{font-size:10px!important;font-weight:650;letter-spacing:.15px}.stat b{font-size:26px!important;font-weight:750!important;letter-spacing:-.6px}
 th{font-size:10px!important;font-weight:700!important;letter-spacing:.2px}td{font-size:11px!important;font-weight:450;line-height:1.45}.muted{font-size:11px}.btn{font-family:inherit;font-size:11px!important;font-weight:650!important;line-height:1.2}
 .stats .card{min-height:92px;display:flex;flex-direction:column;justify-content:center}
+
+/* V68 admin readability */
+body,.side button,.side a,.btn,table{font-family:"Segoe UI",Inter,Arial,sans-serif;text-rendering:optimizeLegibility;-webkit-font-smoothing:antialiased}
+.side button,.side a{font-weight:650;letter-spacing:.01em;line-height:1.25}.top h1,.card h2{letter-spacing:-.01em}

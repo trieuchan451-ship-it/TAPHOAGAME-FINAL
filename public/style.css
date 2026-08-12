@@ -104,3 +104,18 @@ input,select,textarea{width:100%;padding:11px 12px;margin:5px 0;background:#070d
 
 /* V67 deposit */
 .deposit-layout{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(300px,.8fr);gap:12px}.deposit-card{padding:18px}.deposit-bank{display:grid;grid-template-columns:minmax(230px,350px) 1fr;gap:18px;align-items:center}.deposit-qr{width:100%;max-width:350px;aspect-ratio:1;object-fit:contain;background:#fff;border-radius:18px;padding:10px;border:1px solid #2c4673}.deposit-bank-info{display:grid;gap:10px}.deposit-bank-info>div{background:#0a1731;border:1px solid #24436f;border-radius:11px;padding:12px}.deposit-bank-info small{display:block;color:#7d95b7;font-size:8px}.deposit-bank-info b{font-size:17px}.bank-logo{font-size:25px!important;font-weight:1000;color:#55b9ff}.copy-mini{margin-left:8px;border:1px solid #355985;background:#11233e;color:#fff;border-radius:7px;padding:5px 7px}.deposit-memo-box{margin-top:14px;padding:14px;border-radius:13px;background:linear-gradient(135deg,#0a1e3f,#1c1244);border:1px solid #344e85}.deposit-memo-line{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:7px}.deposit-memo-line b{font-size:24px;color:#65c7ff}.deposit-create{display:grid;grid-template-columns:1fr auto;gap:8px;margin-top:12px}.deposit-create input{margin:0}.deposit-success{margin-top:12px;padding:12px;border-radius:11px;background:#0b2d24;border:1px solid #176c50;display:grid;gap:5px}.deposit-history{padding:10px;border-bottom:1px solid #1f3357;display:grid;gap:5px}.deposit-history>div{display:flex;justify-content:space-between;gap:8px}.deposit-history small{display:block;color:#8298b8}@media(max-width:850px){.deposit-layout,.deposit-bank,.deposit-create{grid-template-columns:1fr}.deposit-qr{margin:auto}.deposit-memo-line{align-items:flex-start;flex-direction:column}}
+
+/* V68 stability + support/reviews/notifications */
+.hero{position:relative;overflow:hidden;background:#070d20 url('/assets/hero-lienquan-style.jpg') center/cover no-repeat}
+.hero-bg-video{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;object-fit:cover!important;object-position:center!important;z-index:0!important;pointer-events:none!important}
+.hero-bg-shade{position:absolute!important;inset:0!important;z-index:1!important;pointer-events:none!important}
+.hero .feature-row{z-index:3!important}
+.hero.video-fallback .hero-bg-video{display:none!important}
+.support-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.support-card{padding:18px;min-height:150px;display:flex;flex-direction:column;justify-content:space-between}
+.support-card .support-icon{font-size:28px}.support-card h3{margin:8px 0 4px}.support-card p{font-size:10px;color:#91a6c5}
+.notification-item{padding:11px;border-bottom:1px solid #1f355d}.notification-item.unread{background:#0d1e3d}.notification-item b{display:block;font-size:10px}.notification-item small{color:#7f96b7;font-size:7px}
+.review-stars{display:flex;gap:7px;margin:10px 0}.review-stars button{font-size:25px;background:none;border:0;color:#596779;cursor:pointer}.review-stars button.on{color:#ffc44d}
+.login-row{padding:9px 0;border-bottom:1px solid #1f355d;font-size:9px}
+.seller-trust{font-size:7px;color:#a8b8d0;margin-top:5px}
+@media(max-width:620px){.support-grid{grid-template-columns:1fr}.hero-bg-video{object-position:center center!important}}
