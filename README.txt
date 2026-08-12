@@ -1,62 +1,77 @@
-TAPHOAGAME_FINAL_FULLSTACK
+TAPHOAGAME FINAL BLUE PRO
 
-MỘT BỘ DUY NHẤT - KHÔNG V7/V9/V10 CHỒNG CHÉO.
+GIAO DIỆN
+- Nền xanh da trời / trắng, mobile responsive.
+- Giao diện khách dùng tiếng Việt, không công khai phí nền tảng hay thông tin kỹ thuật database.
+- Khi đã đăng nhập, khung đăng nhập bên trái được thay bằng thông tin tài khoản.
+- Thông báo lỗi/thành công ở giữa màn hình.
+- Thanh cảnh báo lừa đảo chạy ngang.
+- Telegram @tungtungsas, Facebook hỗ trợ và SĐT 0876148544 bằng nút nổi.
 
-LUỒNG ĐĂNG NHẬP:
-- member -> /account.html
-- seller -> /seller.html
-- admin -> /admin.html
-Role được kiểm tra server-side.
+BÁN HÀNG
+- Seller bắt buộc đọc + tick đồng ý quy định trước khi gửi hồ sơ.
+- Admin duyệt seller.
+- Acc chờ Admin duyệt.
+- Seller chọn số ngày bảo hành.
+- Tiền seller bị tạm giữ 72 giờ sau khi bán.
+- Nếu buyer khiếu nại, tiền tiếp tục giữ đến khi Admin xử lý.
+- Seller có held_balance (đang giữ) và seller_balance (có thể rút).
 
-BACKEND:
-- PostgreSQL
-- bcrypt password
-- HttpOnly/Secure cookie JWT
-- auth rate limiting
-- Helmet
-- parameterized SQL
-- transaction + SELECT ... FOR UPDATE khi mua acc/nạp/rút
-- audit log cho giao dịch/duyệt quan trọng
-- admin không thể bị khóa từ API quản lý thông thường
-- sản phẩm sold không thể xóa
+KHIẾU NẠI / BẢO HÀNH
+- Buyer mở khiếu nại từ lịch sử đơn hàng.
+- Admin có thể trả tiền seller hoặc hoàn tiền buyer.
+- Lưu audit log.
 
-MARKETPLACE:
-- seller KYC thủ công bởi Admin
-- sản phẩm phải Admin duyệt
-- Liên Quân / Free Fire / PUBG / Khác
-- mua acc -> trừ member balance, seller nhận 95% nếu fee=5
-- lịch sử buyer mới thấy credential acc
-- chat lưu database
-- nạp tiền pending, không tự cộng khi tạo
-- webhook có secret hoặc Admin xác nhận sau kiểm tra tiền thật
-- rút tiền giữ số dư, reject hoàn seller_balance
+ĐẤU GIÁ
+- Seller tạo phiên đấu giá -> Admin duyệt.
+- Giá khởi điểm, bước giá, thời gian kết thúc.
+- Thành viên đăng nhập mới được bid.
+- Lưu lịch sử bid.
 
-ADMIN:
-- dashboard
-- tài khoản khóa/mở
-- duyệt/từ chối seller
-- duyệt/từ chối/xóa sản phẩm
-- xem đơn
-- nạp/rút
-- audit log
-- admin.html không có trong menu khách
+CHAT
+- Buyer <-> Seller theo acc.
+- Member/Seller <-> Admin qua /support.html.
+- Lịch sử chat lưu PostgreSQL.
 
-RENDER:
-- Root Directory: để trống nếu upload toàn bộ file vào root repo
-- Build: npm install
-- Start: npm start
-- DATABASE_URL bắt buộc
-- JWT_SECRET tối thiểu 32 ký tự
-- ADMIN_PASSWORD nên >= 12 ký tự
-- NODE_ENV=production
-- SHOP_FEE_PERCENT=5
+NẠP TIỀN
+- Mặc định hiển thị MB Bank 11042004102005.
+- Tạo mã nội dung riêng TG...
+- KHÔNG tự cộng tiền chỉ vì người dùng bấm tạo yêu cầu.
+- Tự cộng chỉ khi nhận webhook hợp lệ có PAYMENT_WEBHOOK_SECRET và provider_ref duy nhất.
+- Nếu chưa có webhook, Admin xác nhận sau khi kiểm tra tiền thật.
 
-PRODUCTION HARDENING CÒN CẦN NGOÀI CODE:
-- Cloudflare/WAF
-- private object storage cho CCCD và ảnh nhạy cảm
-- 2FA Admin
-- backup/restore PostgreSQL
-- email SMTP
-- payment provider webhook thật
-- malware scanning upload
-- chính sách pháp lý/KYC/điều khoản nhà phát hành game
+ADMIN
+- Đăng nhập Admin tự vào /admin.html.
+- Khóa/mở tài khoản.
+- Đặt lại mật khẩu người khác (không xem mật khẩu cũ).
+- Xóa tài khoản chỉ khi chưa có dữ liệu giao dịch.
+- Xem IP đăng ký / IP đăng nhập gần nhất.
+- Cấm IP.
+- Duyệt seller, acc, đấu giá.
+- Khiếu nại/bảo hành.
+- Nạp/rút.
+- Audit log.
+
+ANTI-FRAUD
+- PostgreSQL transaction + row lock.
+- Wallet ledger.
+- Webhook idempotency/provider_ref chống cộng tiền 2 lần.
+- IP ban + auth rate limit.
+- Không khóa vĩnh viễn chỉ dựa vào IP tự động; Admin là người ra quyết định khóa/cấm IP.
+
+RENDER ENV
+DATABASE_URL=
+JWT_SECRET= (>=32 ký tự)
+ADMIN_EMAIL=
+ADMIN_PASSWORD= (>=12 ký tự)
+SHOP_FEE_PERCENT=5
+BANK_NAME=MB Bank
+BANK_ACCOUNT=11042004102005
+BANK_ACCOUNT_NAME=
+PAYMENT_WEBHOOK_SECRET=
+SMTP_* optional
+
+LƯU Ý QUAN TRỌNG
+- Muốn tự cộng tiền khi chuyển MB Bank: cần một API/cổng thanh toán/webhook chính thức cung cấp xác nhận giao dịch.
+- Không có webhook chính thức thì để giao dịch pending và Admin kiểm tra thủ công.
+- Production nên chuyển CCCD sang private object storage, thêm 2FA Admin, WAF/Cloudflare và backup PostgreSQL.
