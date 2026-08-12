@@ -1,37 +1,11 @@
-<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>TAPHOAGAME.VN</title><link rel="stylesheet" href="/style.css?v=50"></head><body>
+<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>TÀI KHOẢN YÊU THÍCH</title><link rel="stylesheet" href="/style.css?v=50"></head><body>
 
 <div class="warning"><span>⚠ CẢNH BÁO: Không cung cấp mật khẩu/OTP • Không giao dịch riêng ngoài hệ thống • Chỉ thanh toán theo thông tin TAPHOAGAME hiển thị • Có vấn đề hãy liên hệ hỗ trợ.</span></div>
 <div class="header"><div class="head"><a class="brand" href="/"><div class="brand-logo"></div><div><strong>TAPHOAGAME.VN</strong><small>CHỢ TÀI KHOẢN GAME CAO CẤP</small></div></a><div class="search"><input id="q" placeholder="Tìm tài khoản, trò chơi, người bán..."><button onclick="doSearch()">TÌM</button></div><div class="actions"><div class="wallet guest-hidden"><small>SỐ DƯ</small><b data-balance>0đ</b></div><a class="btn primary" href="/deposit.html">NẠP TIỀN</a><button class="btn" onclick="goAccount()">TÀI KHOẢN</button></div></div><div class="nav"><a href="/">TRANG CHỦ</a><a href="/products.html">KHO TÀI KHOẢN</a><a href="/auctions.html">ĐẤU GIÁ</a><a href="/cart.html">GIỎ HÀNG</a><a href="/favorites.html">YÊU THÍCH</a><a href="/history.html">ĐƠN HÀNG</a><a href="/support.html">CHAT ADMIN</a><a href="/seller.html">BÁN HÀNG</a></div></div>
 <div class="mobile-nav"><a href="/">TRANG CHỦ</a><a href="/products.html">KHO</a><a href="/cart.html">GIỎ HÀNG</a><a href="/support.html">HỖ TRỢ</a><a href="/account.html">CÁ NHÂN</a></div>
 <div class="support-float"><a class="tg" href="https://t.me/tungtungsas" target="_blank">TG</a><a class="fb" href="https://www.facebook.com/share/19LX5nekKj/?mibextid=wwXIfr" target="_blank">f</a><a class="phone" href="tel:0876148544">☎</a></div>
 
-<main class="page"><div class="layout">
-<aside class="side">
-  <div class="panel"><div class="side-body" id="quick"></div></div>
-  <div class="panel"><div class="panel-title">DANH MỤC GAME</div><div class="menu">
-    <a href="/products.html">✦ Tất cả trò chơi <span class="pill" id="cnt">0</span></a>
-    <a href="/products.html?game=lienquan">♛ Liên Quân Mobile ›</a>
-    <a href="/products.html?game=freefire">◈ Free Fire ›</a>
-    <a href="/products.html?game=pubg">◉ PUBG Mobile ›</a>
-    <a href="/products.html?game=khac">◆ Valorant ›</a>
-    <a href="/products.html?game=khac">✧ Genshin Impact ›</a>
-    <a href="/products.html?game=khac">◇ Liên Minh Huyền Thoại ›</a>
-    <a href="/products.html?game=khac">＋ Game khác ›</a>
-  </div></div>
-  <div class="panel promo"><h3>BÁN TÀI KHOẢN NHANH</h3><p>Đăng tài khoản, gửi duyệt và bắt đầu bán trên gian hàng.</p><a class="btn" href="/seller.html">ĐĂNG BÁN NGAY</a></div>
-</aside>
-<section>
-  <div class="hero"><div class="feature-row">
-    <div class="feature"><b>▣ KHO TÀI KHOẢN</b><small>Đa dạng, chất lượng</small></div>
-    <div class="feature"><b>⌘ ĐẤU GIÁ</b><small>Giá tốt mỗi ngày</small></div>
-    <div class="feature"><b>◯ NGƯỜI BÁN</b><small>Đã xác thực uy tín</small></div>
-    <div class="feature"><b>♢ BẢO HÀNH</b><small>An tâm giao dịch</small></div>
-    <div class="feature"><b>◌ HỖ TRỢ 24/7</b><small>Nhanh chóng, tận tâm</small></div>
-  </div></div>
-  <div class="section-head"><h2>TÀI KHOẢN MỚI ĐƯỢC DUYỆT</h2><a href="/products.html">Xem tất cả ›</a></div>
-  <div class="grid" id="featured"></div>
-</section>
-</div></main>
+<main class="page"><div id="back"></div><div class="panel content"><div class="section-head" style="margin-top:0"><h1>TÀI KHOẢN YÊU THÍCH</h1></div><div class="grid" id="list"></div></div></main>
 
 <div class="modal" id="auth"><div class="authbox"><div class="auth-head"><div><b>TÀI KHOẢN TAPHOAGAME</b><div class="hint">Thành viên, người bán và quản trị viên</div></div><button class="btn" onclick="closeAuth()">ĐÓNG</button></div><div class="auth-body"><div class="tabs"><button class="tab on" data-t="login" onclick="authTab('login')">ĐĂNG NHẬP</button><button class="tab" data-t="register" onclick="authTab('register')">ĐĂNG KÝ</button></div><div class="pane on" id="pane-login"><input id="li" placeholder="Tên đăng nhập hoặc email"><input id="lp" type="password" placeholder="Mật khẩu"><button class="btn primary" style="width:100%" onclick="login()">ĐĂNG NHẬP</button></div><div class="pane" id="pane-register"><input id="ru" placeholder="Tên đăng nhập"><input id="re" type="email" placeholder="Email"><input id="rp" type="password" placeholder="Mật khẩu từ 8 ký tự"><button class="btn primary" style="width:100%" onclick="register()">TẠO TÀI KHOẢN</button></div></div></div></div>
 <div class="modal" id="notify"><div class="notifybox"><div style="font-size:30px">✦</div><h3 id="notifyTitle">Thông báo</h3><p id="notifyText"></p><button class="btn primary" onclick="closeNotify()">ĐÓNG</button></div></div>
@@ -54,17 +28,7 @@ function toggleCart(id){let a=cart();a=a.includes(id)?a.filter(x=>x!==id):[...a,
 function backLink(){return `<div class="backbar"><a class="backbtn" href="javascript:history.back()">← TRỞ VỀ</a></div>`}
 function productCard(p){const id=Number(p.id),f=favs().includes(id);return `<div class="panel product">${p.image?`<div class="thumb"><img src="/uploads/${p.image}"></div>`:`<div class="thumb"><div class="thumb-empty">TÀI KHOẢN<br>${p.game==='lienquan'?'LIÊN QUÂN':'GAME'}</div></div>`}<div class="tag">${p.game==='lienquan'?'LIÊN QUÂN':'TÀI KHOẢN GAME'}</div><div class="product-body"><div class="code">#TG${String(p.id).padStart(4,'0')}</div><h3>${p.title}</h3><div class="meta"><div><small>NGƯỜI BÁN</small><b>${p.seller}</b></div><div><small>BẢO HÀNH</small><b>${p.warranty_days} ngày</b></div></div><div class="product-bottom"><div class="price">${money(p.price)}</div><a class="btn" href="/products.html?id=${p.id}">CHI TIẾT</a></div></div><div class="card-actions"><button class="icon-btn ${f?'active':''}" data-fav="${p.id}" onclick="toggleFav(${id})">♡</button><button class="icon-btn" onclick="toggleCart(${id})">🛒</button></div></div>`}
 
-async function quickLogin(){try{const r=await api('/api/auth/login',{method:'POST',body:JSON.stringify({identity:qi.value,password:qp.value})});location.href=r.redirect}catch(e){notifyMsg(e.message,'Đăng nhập thất bại')}}
-async function load(){
- const u=await current(),p=await api('/api/products');document.getElementById('cnt').textContent=p.length;
- if(u){
-   quick.innerHTML=`<div class="profile-head"><div class="avatar"></div><div><b style="font-size:16px">${u.username}</b><br><span class="role">${u.role==='admin'?'ADMIN':u.role==='seller'?'NGƯỜI BÁN':'THÀNH VIÊN'}</span><div class="hint">${u.email}</div></div></div><div style="margin-top:16px"><div class="hint">SỐ DƯ TÀI KHOẢN</div><div class="balance-big">${money(u.balance)}</div><button class="btn primary" style="width:100%" onclick="goAccount()">VÀO TÀI KHOẢN</button></div>`
- }else{
-   quick.innerHTML=`<div class="panel-title" style="margin:-14px -14px 10px">ĐĂNG NHẬP</div><input id="qi" placeholder="Tên đăng nhập hoặc email"><input id="qp" type="password" placeholder="Mật khẩu"><button class="btn primary" style="width:100%" onclick="quickLogin()">ĐĂNG NHẬP</button><div style="height:7px"></div><button class="btn" style="width:100%" onclick="openAuth();authTab('register')">ĐĂNG KÝ</button>`
- }
- featured.innerHTML=p.length?p.slice(0,10).map(productCard).join(''):'<div class="empty" style="grid-column:1/-1">CHƯA CÓ TÀI KHOẢN ĐƯỢC DUYỆT</div>';
-}
-load();
+async function load(){back.innerHTML=backLink();await current();const ids=JSON.parse(localStorage.getItem('tg_favorites')||'[]');const p=await api('/api/products');const x=p.filter(v=>ids.includes(Number(v.id)));list.innerHTML=x.length?x.map(productCard).join(''):'<div class="empty" style="grid-column:1/-1">CHƯA CÓ TÀI KHOẢN NÀO</div>'}load();
 </script>
 
 <script>

@@ -75,3 +75,13 @@ LƯU Ý QUAN TRỌNG
 - Muốn tự cộng tiền khi chuyển MB Bank: cần một API/cổng thanh toán/webhook chính thức cung cấp xác nhận giao dịch.
 - Không có webhook chính thức thì để giao dịch pending và Admin kiểm tra thủ công.
 - Production nên chuyển CCCD sang private object storage, thêm 2FA Admin, WAF/Cloudflare và backup PostgreSQL.
+
+
+NEON MARKETPLACE v50
+- Giao diện navy/xanh/tím neon theo mẫu marketplace game.
+- Banner Liên Quân phong cách trưng bày.
+- Toàn bộ chữ ACC trên giao diện chính đổi thành TÀI KHOẢN.
+- Tim yêu thích + giỏ hàng bằng localStorage.
+- Có /favorites.html và /cart.html.
+- Trang con có nút Trở về.
+- Admin giao diện gọn: tổng nạp, lần nạp gần nhất, hoạt động gần nhất, online/offline, IP, quản lý người bán/gian hàng.

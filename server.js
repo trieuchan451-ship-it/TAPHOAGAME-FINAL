@@ -90,6 +90,7 @@ async function initDb(){
  ALTER TABLE users ADD COLUMN IF NOT EXISTS held_balance BIGINT NOT NULL DEFAULT 0;
  ALTER TABLE users ADD COLUMN IF NOT EXISTS register_ip VARCHAR(120) DEFAULT '';
  ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login_ip VARCHAR(120) DEFAULT '';
+ ALTER TABLE users ADD COLUMN IF NOT EXISTS last_seen_at TIMESTAMPTZ;
 
  CREATE TABLE IF NOT EXISTS seller_applications(
    id BIGSERIAL PRIMARY KEY,
@@ -293,7 +294,7 @@ async function auth(req,res,next){
    const q=await pool.query(`SELECT id,username,email,role,status,phone,seller_verification,balance,seller_balance,held_balance,created_at FROM users WHERE id=$1`,[p.id]);
    if(!q.rowCount)return res.status(401).json({error:'Phiên đăng nhập không hợp lệ'});
    if(q.rows[0].status!=='active')return res.status(403).json({error:'Tài khoản đang bị khóa'});
-   req.user=q.rows[0];next();
+   req.user=q.rows[0]; pool.query(`UPDATE users SET last_seen_at=NOW() WHERE id=$1`,[req.user.id]).catch(()=>{}); next();
  }catch{return res.status(401).json({error:'Phiên đăng nhập đã hết hạn'})}
 }
 function admin(req,res,next){if(req.user?.role!=='admin')return res.status(403).json({error:'Không có quyền quản trị'});next()}
@@ -325,7 +326,7 @@ app.post('/api/auth/login',authLimiter,async(req,res)=>{
  const u=q.rows[0];
  if(!u||!(await bcrypt.compare(password,u.password_hash)))return res.status(401).json({error:'Sai tài khoản hoặc mật khẩu'});
  if(u.status!=='active')return res.status(403).json({error:'Tài khoản đang bị khóa'});
- await pool.query(`UPDATE users SET last_login_ip=$1 WHERE id=$2`,[ip,u.id]);
+ await pool.query(`UPDATE users SET last_login_ip=$1,last_seen_at=NOW() WHERE id=$2`,[ip,u.id]);
  session(res,u);
  res.json({ok:true,role:u.role,redirect:u.role==='admin'?'/admin.html':u.role==='seller'?'/seller.html':'/account.html'});
 });
@@ -506,7 +507,17 @@ app.get('/api/admin/stats',auth,admin,async(req,res)=>{
  ]);
  res.json({users:Number(u.rows[0].c),sellers:Number(s.rows[0].c),products:Number(p.rows[0].c),orders:Number(o.rows[0].c),held:Number(h.rows[0].v),complaints:Number(c.rows[0].c)});
 });
-app.get('/api/admin/users',auth,admin,async(req,res)=>res.json((await pool.query(`SELECT id,username,email,role,status,balance,seller_balance,held_balance,register_ip,last_login_ip,created_at FROM users ORDER BY id DESC LIMIT 500`)).rows));
+app.get('/api/admin/users',auth,admin,async(req,res)=>res.json((await pool.query(`
+SELECT u.id,u.username,u.email,u.role,u.status,u.balance,u.seller_balance,u.held_balance,u.register_ip,u.last_login_ip,u.created_at,u.last_seen_at,
+COALESCE((SELECT SUM(d.amount) FROM deposits d WHERE d.user_id=u.id AND d.status='paid'),0) total_deposit,
+(SELECT MAX(d.paid_at) FROM deposits d WHERE d.user_id=u.id AND d.status='paid') last_deposit_at,
+COALESCE((SELECT COUNT(*) FROM deposits d WHERE d.user_id=u.id AND d.status='paid'),0) deposit_count,
+COALESCE((SELECT COUNT(*) FROM orders o WHERE o.seller_id=u.id),0) sold_orders,
+COALESCE((SELECT SUM(o.amount) FROM orders o WHERE o.seller_id=u.id AND o.status<>'refunded'),0) gross_sales,
+COALESCE((SELECT COUNT(*) FROM products p WHERE p.seller_id=u.id AND p.status='approved'),0) selling_products,
+COALESCE((SELECT COUNT(*) FROM products p WHERE p.seller_id=u.id AND p.status='sold'),0) sold_products,
+COALESCE((SELECT COUNT(*) FROM complaints c WHERE c.seller_id=u.id AND c.status='open'),0) open_complaints
+FROM users u ORDER BY u.id DESC LIMIT 500`)).rows));
 app.post('/api/admin/users/:id/toggle-lock',auth,admin,async(req,res)=>{
  const q=await pool.query(`SELECT role,status FROM users WHERE id=$1`,[req.params.id]);if(!q.rowCount||q.rows[0].role==='admin')return res.status(400).json({error:'Không thể thực hiện'});
  const status=q.rows[0].status==='active'?'suspended':'active';await pool.query(`UPDATE users SET status=$1 WHERE id=$2`,[status,req.params.id]);res.json({ok:true,status});
@@ -577,6 +588,20 @@ app.get('/api/admin/auctions',auth,admin,async(req,res)=>res.json((await pool.qu
 app.post('/api/admin/auctions/:id/approve',auth,admin,async(req,res)=>{await pool.query(`UPDATE auctions SET status='approved' WHERE id=$1 AND status='pending'`,[req.params.id]);res.json({ok:true})});
 app.post('/api/admin/auctions/:id/cancel',auth,admin,async(req,res)=>{await pool.query(`UPDATE auctions SET status='cancelled' WHERE id=$1 AND status IN ('pending','approved')`,[req.params.id]);res.json({ok:true})});
 app.get('/api/admin/audit',auth,admin,async(req,res)=>res.json((await pool.query(`SELECT a.*,u.username actor FROM audit_logs a LEFT JOIN users u ON u.id=a.actor_id ORDER BY a.id DESC LIMIT 500`)).rows));
+
+
+app.get('/api/admin/sellers/:id/overview',auth,admin,async(req,res)=>{
+ const id=Number(req.params.id);
+ const uq=await pool.query(`SELECT id,username,email,status,seller_balance,held_balance,created_at,last_seen_at,last_login_ip FROM users WHERE id=$1 AND role='seller'`,[id]);
+ if(!uq.rowCount)return res.status(404).json({error:'Không tìm thấy người bán'});
+ const [p,o,c,w]=await Promise.all([
+   pool.query(`SELECT id,title,game,price,status,created_at FROM products WHERE seller_id=$1 ORDER BY id DESC LIMIT 100`,[id]),
+   pool.query(`SELECT id,amount,seller_net,release_status,status,created_at FROM orders WHERE seller_id=$1 ORDER BY id DESC LIMIT 100`,[id]),
+   pool.query(`SELECT id,order_id,type,status,created_at FROM complaints WHERE seller_id=$1 ORDER BY id DESC LIMIT 100`,[id]),
+   pool.query(`SELECT id,amount,bank,account_no,status,created_at FROM withdrawals WHERE seller_id=$1 ORDER BY id DESC LIMIT 100`,[id])
+ ]);
+ res.json({seller:uq.rows[0],products:p.rows,orders:o.rows,complaints:c.rows,withdrawals:w.rows});
+});
 
 app.get('*',(req,res)=>res.sendFile(path.join(__dirname,'public','index.html')));
 
