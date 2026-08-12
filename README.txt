@@ -101,3 +101,9 @@ V62 PROFILE FIX
 - Trang cá nhân không tự chuyển seller/admin sang trang khác.
 - 20 avatar hoạt động cho mọi tài khoản và lưu vào PostgreSQL.
 - Người bán vẫn vào Trung tâm người bán bằng menu BÁN HÀNG.
+
+V63 MOBILE CHAT FIX
+- Menu mobile chuyển từ thanh cố định dưới đáy lên ngay phía trên nội dung.
+- Chat hỗ trợ thu gọn kiểu Messenger.
+- Bong bóng tin nhắn nền sáng, chữ đen, tin của mình màu xanh nhạt.
+- Khung chat thấp hơn, dễ dùng trên điện thoại.

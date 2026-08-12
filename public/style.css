@@ -40,3 +40,18 @@ input,select,textarea{width:100%;padding:11px 12px;margin:5px 0;background:#070d
 /* V62: static banner only */
 .hero-video,.hero-video-overlay,.hero-motion,.motion-char{display:none!important;animation:none!important}
 .hero{background:#070d20 url('/assets/hero-lienquan-style.jpg') center/cover no-repeat!important}
+
+/* V63 MOBILE TOP NAV + MESSENGER CHAT */
+.chat-shell{max-width:720px;margin:0 auto;background:#f5f7fb;border-radius:16px;overflow:hidden;border:1px solid #d8deea;box-shadow:0 15px 40px rgba(0,0,0,.22)}
+.chat-top{height:52px;background:#fff;color:#111827;border-bottom:1px solid #e5e7eb;display:flex;align-items:center;justify-content:space-between;padding:0 14px}
+.chat-person{display:flex;align-items:center;gap:9px}.chat-person .dot{width:10px;height:10px;border-radius:50%;background:#22c55e}.chat-person b{font-size:13px}.chat-person small{display:block;color:#6b7280;font-size:9px}
+.chat-messages{height:min(54vh,430px);overflow:auto;padding:12px;background:#f3f5f9}
+.msg-row{display:flex;margin:6px 0}.msg-row.me{justify-content:flex-end}.msg-bubble{max-width:76%;padding:9px 11px;border-radius:15px;background:#fff;color:#111827;border:1px solid #e2e5eb;font-size:12px;line-height:1.35;box-shadow:0 2px 5px rgba(0,0,0,.04)}.msg-row.me .msg-bubble{background:#dbeafe;border-color:#bfdbfe}.msg-name{font-size:8px;font-weight:800;color:#4b5563;margin-bottom:3px}.msg-time{font-size:7px;color:#9ca3af;margin-top:4px;text-align:right}
+.chat-compose{display:flex;gap:7px;padding:10px;background:#fff;border-top:1px solid #e5e7eb}.chat-compose input{margin:0;background:#f2f3f5;color:#111827;border:1px solid #d4d7dd;border-radius:20px;padding:10px 13px}.chat-compose button{border-radius:20px;min-width:64px}
+@media(max-width:620px){
+ body{padding-bottom:0!important}
+ .mobile-nav{display:grid!important;position:relative!important;left:auto!important;right:auto!important;bottom:auto!important;top:auto!important;z-index:45;grid-template-columns:repeat(5,1fr);background:#071126;border:0;border-bottom:1px solid #263b66;border-radius:0;padding:6px 7px;margin:0}
+ .mobile-nav a{padding:8px 2px;font-size:7px}
+ .support-float{bottom:18px}
+ .chat-shell{border-radius:12px}.chat-messages{height:48vh}.chat-top{height:48px}.msg-bubble{max-width:82%;font-size:12px}
+}
