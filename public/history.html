@@ -10,7 +10,7 @@
 async function api(url,opt={}){const r=await fetch(url,{credentials:'include',headers:{...(opt.body instanceof FormData?{}:{'Content-Type':'application/json'}),...(opt.headers||{})},...opt});const j=await r.json().catch(()=>({}));if(!r.ok)throw Error(j.error||'Có lỗi xảy ra');return j}
 function money(n){return Number(n||0).toLocaleString('vi-VN')+'đ'}
 async function current(){try{const u=await api('/api/me');document.querySelectorAll('[data-balance]').forEach(x=>x.textContent=money(u.balance));const ab=document.getElementById('accountBtn'),uc=document.getElementById('userChip');if(ab)ab.style.display='none';if(uc){uc.style.display='flex';document.getElementById('chipName').textContent=u.username;document.getElementById('chipAvatar').src='/assets/avatars/'+(u.avatar_id||1)+'.svg'}return u}catch{return null}}
-async function goAccount(){const u=await current();if(!u){openAuth();return}location.href=u.role==='admin'?'/admin.html':u.role==='seller'?'/seller.html':'/account.html'}
+async function goAccount(){const u=await current();if(!u){openAuth();return}location.href='/account.html'}
 function doSearch(){const t=(document.getElementById('q')?.value||'').trim();location.href='/products.html'+(t?'?q='+encodeURIComponent(t):'')}
 function openAuth(){document.getElementById('auth')?.classList.add('open')}function closeAuth(){document.getElementById('auth')?.classList.remove('open')}
 function authTab(t){document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('on',x.dataset.t===t));document.querySelectorAll('.pane').forEach(x=>x.classList.toggle('on',x.id==='pane-'+t))}

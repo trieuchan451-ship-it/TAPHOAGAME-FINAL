@@ -94,3 +94,10 @@ V61 SELLER PRO
 - Trung tâm người bán chia tab: Tổng quan, Đang bán, Đã bán, Chờ duyệt, Đấu giá, Đơn hàng, Khiếu nại, Đăng tài khoản, Tạo đấu giá, Rút tiền.
 - Người bán xem người mua, tiền nhận, trạng thái giữ 72 giờ.
 - Người bán có thể chốt phiên đấu giá bằng popup của website.
+
+V62 PROFILE FIX
+- Tắt hoàn toàn video/chuyển động banner; dùng ảnh tĩnh.
+- Bấm avatar/tên sau đăng nhập luôn mở Trang cá nhân.
+- Trang cá nhân không tự chuyển seller/admin sang trang khác.
+- 20 avatar hoạt động cho mọi tài khoản và lưu vào PostgreSQL.
+- Người bán vẫn vào Trung tâm người bán bằng menu BÁN HÀNG.

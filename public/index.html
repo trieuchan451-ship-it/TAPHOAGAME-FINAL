@@ -21,7 +21,7 @@
   <div class="panel promo"><h3>BÁN TÀI KHOẢN NHANH</h3><p>Đăng tài khoản, gửi duyệt và bắt đầu bán trên gian hàng.</p><a class="btn" href="/seller.html">ĐĂNG BÁN NGAY</a></div>
 </aside>
 <section>
-  <div class="hero"><video class="hero-video" autoplay muted loop playsinline poster="/assets/hero-lienquan-style.jpg"><source src="/assets/hero-banner.mp4" type="video/mp4"></video><div class="hero-video-overlay"></div><div class="feature-row">
+  <div class="hero"><div class="feature-row">
     <div class="feature"><b>▣ KHO TÀI KHOẢN</b><small>Đa dạng, chất lượng</small></div>
     <div class="feature"><b>⌘ ĐẤU GIÁ</b><small>Giá tốt mỗi ngày</small></div>
     <div class="feature"><b>◯ NGƯỜI BÁN</b><small>Đã xác thực uy tín</small></div>
@@ -41,7 +41,7 @@
 async function api(url,opt={}){const r=await fetch(url,{credentials:'include',headers:{...(opt.body instanceof FormData?{}:{'Content-Type':'application/json'}),...(opt.headers||{})},...opt});const j=await r.json().catch(()=>({}));if(!r.ok)throw Error(j.error||'Có lỗi xảy ra');return j}
 function money(n){return Number(n||0).toLocaleString('vi-VN')+'đ'}
 async function current(){try{const u=await api('/api/me');document.querySelectorAll('.wallet').forEach(x=>x.classList.remove('guest-hidden'));document.querySelectorAll('[data-balance]').forEach(x=>x.textContent=money(u.balance));const ab=document.getElementById('accountBtn'),uc=document.getElementById('userChip');if(ab)ab.style.display='none';if(uc){uc.style.display='flex';document.getElementById('chipName').textContent=u.username;document.getElementById('chipAvatar').src='/assets/avatars/'+(u.avatar_id||1)+'.svg'}return u}catch{document.querySelectorAll('.wallet').forEach(x=>x.classList.add('guest-hidden'));return null}}
-async function goAccount(){const u=await current();if(!u){openAuth();return}location.href=u.role==='admin'?'/admin.html':u.role==='seller'?'/seller.html':'/account.html'}
+async function goAccount(){const u=await current();if(!u){openAuth();return}location.href='/account.html'}
 function doSearch(){const t=(document.getElementById('q')?.value||'').trim();location.href='/products.html'+(t?'?q='+encodeURIComponent(t):'')}
 function openAuth(){document.getElementById('auth')?.classList.add('open')}function closeAuth(){document.getElementById('auth')?.classList.remove('open')}
 function authTab(t){document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('on',x.dataset.t===t));document.querySelectorAll('.pane').forEach(x=>x.classList.toggle('on',x.id==='pane-'+t))}

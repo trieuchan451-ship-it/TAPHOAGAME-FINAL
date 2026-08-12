@@ -36,3 +36,7 @@ input,select,textarea{width:100%;padding:11px 12px;margin:5px 0;background:#070d
 .hero-motion,.motion-char{display:none!important}
 .seller-shell{display:grid;grid-template-columns:230px 1fr;gap:12px}.seller-nav{padding:10px;position:sticky;top:135px;height:max-content}.seller-nav button{width:100%;text-align:left;margin:4px 0;padding:10px;border-radius:8px;border:1px solid #263f6d;background:#0b1731;color:#fff;font-weight:900;cursor:pointer}.seller-nav button.on{background:linear-gradient(135deg,#1d78ff,#a82de9);border-color:transparent}.seller-view{display:none}.seller-view.on{display:block}.seller-table{width:100%;border-collapse:collapse}.seller-table th,.seller-table td{padding:9px;border-bottom:1px solid #1d3155;text-align:left;font-size:9px}.seller-table th{color:#87bff2}.seller-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.seller-kpi{padding:13px}.seller-kpi small{display:block;color:#8298b8;font-size:7px}.seller-kpi b{font-size:18px;display:block;margin-top:4px;color:#47b4ff}
 @media(max-width:850px){.seller-shell{grid-template-columns:1fr}.seller-nav{position:static;display:flex;overflow:auto}.seller-nav button{min-width:145px}.seller-kpis{grid-template-columns:repeat(2,1fr)}}
+
+/* V62: static banner only */
+.hero-video,.hero-video-overlay,.hero-motion,.motion-char{display:none!important;animation:none!important}
+.hero{background:#070d20 url('/assets/hero-lienquan-style.jpg') center/cover no-repeat!important}
