@@ -119,7 +119,7 @@ async function initDb(){
  CREATE TABLE IF NOT EXISTS products(
    id BIGSERIAL PRIMARY KEY,
    seller_id BIGINT NOT NULL REFERENCES users(id),
-   game VARCHAR(30) NOT NULL CHECK(game IN ('lienquan','freefire','pubg','khac')),
+   game VARCHAR(30) NOT NULL CHECK(game IN ('lienquan','freefire','pubg','lol','khac')),
    title VARCHAR(160) NOT NULL,
    description TEXT NOT NULL,
    price BIGINT NOT NULL CHECK(price>0),
@@ -132,6 +132,8 @@ async function initDb(){
    created_at TIMESTAMPTZ DEFAULT NOW()
  );
  ALTER TABLE products ADD COLUMN IF NOT EXISTS warranty_days INT NOT NULL DEFAULT 3;
+ ALTER TABLE products DROP CONSTRAINT IF EXISTS products_game_check;
+ ALTER TABLE products ADD CONSTRAINT products_game_check CHECK(game IN ('lienquan','freefire','pubg','lol','khac'));
 
  CREATE TABLE IF NOT EXISTS orders(
    id BIGSERIAL PRIMARY KEY,
@@ -366,7 +368,7 @@ app.get('/api/products',async(req,res)=>{
 });
 app.post('/api/products',auth,seller,upload.single('image'),async(req,res)=>{
  const {game,title,description,account_login,account_password}=req.body,price=Number(req.body.price),warranty=Number(req.body.warranty_days||3);
- if(!['lienquan','freefire','pubg','khac'].includes(game)||!title||!description||!account_login||!account_password||!Number.isInteger(price)||price<=0)return res.status(400).json({error:'Thông tin acc chưa hợp lệ'});
+ if(!['lienquan','freefire','pubg','lol','khac'].includes(game)||!title||!description||!account_login||!account_password||!Number.isInteger(price)||price<=0)return res.status(400).json({error:'Thông tin acc chưa hợp lệ'});
  const q=await pool.query(`INSERT INTO products(seller_id,game,title,description,price,image,account_login,account_password,warranty_days) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id,status`,
  [req.user.id,game,title,description,price,req.file?.filename||null,account_login,account_password,Math.max(0,Math.min(365,warranty))]);
  res.json(q.rows[0]);
@@ -519,7 +521,21 @@ app.get('/api/seller/dashboard',auth,seller,async(req,res)=>{
   pool.query(`SELECT c.id,c.order_id,c.type,c.status,c.description,c.created_at,b.username buyer FROM complaints c JOIN users b ON b.id=c.buyer_id WHERE c.seller_id=$1 ORDER BY c.id DESC`,[req.user.id]),
   pool.query(`SELECT id,amount,bank,account_no,status,created_at,processed_at FROM withdrawals WHERE seller_id=$1 ORDER BY id DESC LIMIT 100`,[req.user.id])
  ]);
- res.json({products:products.rows,orders:orders.rows,auctions:auctions.rows,complaints:complaints.rows,withdrawals:withdrawals.rows});
+ const pr=products.rows,od=orders.rows,au=auctions.rows,cp=complaints.rows;
+ const summary={
+  selling:pr.filter(x=>x.status==='approved').length,
+  sold:pr.filter(x=>x.status==='sold').length,
+  pending:pr.filter(x=>x.status==='pending').length,
+  rejected:pr.filter(x=>x.status==='rejected').length,
+  auctions_active:au.filter(x=>x.status==='approved').length,
+  auctions_ended:au.filter(x=>x.status==='ended').length,
+  orders_total:od.length,
+  orders_held:od.filter(x=>x.release_status==='held').length,
+  orders_released:od.filter(x=>x.release_status==='released').length,
+  orders_disputed:od.filter(x=>x.release_status==='disputed').length,
+  complaints_open:cp.filter(x=>x.status==='open').length
+ };
+ res.json({summary,products:pr,orders:od,auctions:au,complaints:cp,withdrawals:withdrawals.rows});
 });
 
 /* ADMIN */
@@ -544,6 +560,21 @@ app.post('/api/auctions/:id/close',auth,seller,async(req,res)=>{
   await c.query('COMMIT');
   res.json({ok:true,winner_id:a.current_bidder,amount:a.current_price});
  }catch(e){await c.query('ROLLBACK');res.status(400).json({error:e.message})}finally{c.release()}
+});
+
+app.get('/api/admin/stats',auth,admin,async(req,res)=>{
+ try{
+  const [u,se,p,o,c,held,dep]=await Promise.all([
+   pool.query(`SELECT COUNT(*)::int n FROM users`),
+   pool.query(`SELECT COUNT(*)::int n FROM users WHERE role='seller'`),
+   pool.query(`SELECT COUNT(*)::int n FROM products WHERE status='approved'`),
+   pool.query(`SELECT COUNT(*)::int n FROM orders`),
+   pool.query(`SELECT COUNT(*)::int n FROM complaints WHERE status='open'`),
+   pool.query(`SELECT COALESCE(SUM(held_balance),0)::bigint v FROM users`),
+   pool.query(`SELECT COALESCE(SUM(amount),0)::bigint v FROM deposits WHERE status='paid'`)
+  ]);
+  res.json({users:u.rows[0].n,sellers:se.rows[0].n,products:p.rows[0].n,orders:o.rows[0].n,complaints:c.rows[0].n,held:Number(held.rows[0].v||0),deposits:Number(dep.rows[0].v||0)});
+ }catch(e){res.status(500).json({error:'Không tải được thống kê'})}
 });
 app.get('/api/admin/users',auth,admin,async(req,res)=>res.json((await pool.query(`
 SELECT u.id,u.username,u.email,u.role,u.status,u.balance,u.seller_balance,u.held_balance,u.register_ip,u.last_login_ip,u.created_at,u.last_seen_at,

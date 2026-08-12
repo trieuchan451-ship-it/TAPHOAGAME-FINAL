@@ -112,3 +112,11 @@ V64 MOBILE FLOAT FIX
 - Trên điện thoại, Chat cộng đồng chuyển sang nút riêng ở góc trái dưới.
 - Telegram/Facebook/Điện thoại giữ riêng ở góc phải dưới.
 - Khi mở chat, khung chat nằm cao hơn cụm hỗ trợ và không còn chồng lên nhau.
+
+V65 ADMIN + SELLER + HOME
+- Fix Admin undefined bằng API /api/admin/stats thật.
+- Font Admin sắc nét hơn, giảm chữ bầy/nhòe.
+- Người bán có bảng điều khiển đơn hàng dễ đọc và bộ lọc trạng thái.
+- 4 kho nổi bật Liên Quân / Free Fire / PUBG / Liên Minh luôn hiện kể cả 0 tài khoản.
+- Hỗ trợ game Liên Minh bằng mã lol.
+- Banner trang chủ có video nền Liên Quân loop nhẹ, không dùng khối CSS giả.
