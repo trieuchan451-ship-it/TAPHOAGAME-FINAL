@@ -120,3 +120,10 @@ V65 ADMIN + SELLER + HOME
 - 4 kho nổi bật Liên Quân / Free Fire / PUBG / Liên Minh luôn hiện kể cả 0 tài khoản.
 - Hỗ trợ game Liên Minh bằng mã lol.
 - Banner trang chủ có video nền Liên Quân loop nhẹ, không dùng khối CSS giả.
+
+V66 DEPOSIT + ADMIN FIX
+- Trang Nạp tiền mới dùng QR MB/VietQR được cung cấp.
+- Mỗi tài khoản có nội dung chuyển khoản cố định dạng TG<ID>NAP.
+- Mỗi tài khoản chỉ giữ một yêu cầu nạp pending; tạo lại sẽ cập nhật số tiền của yêu cầu đang chờ.
+- Admin có nút DUYỆT + CỘNG TIỀN; giao dịch chỉ cộng một lần vì chỉ trạng thái pending mới được duyệt.
+- Đã gỡ tính năng chặn/bỏ chặn IP khỏi giao diện và luồng xác thực.

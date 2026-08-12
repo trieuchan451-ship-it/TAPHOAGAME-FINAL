@@ -56,11 +56,6 @@ function ipOf(req){
   const xf=req.headers['x-forwarded-for'];
   return String(Array.isArray(xf)?xf[0]:(xf||req.ip||'')).split(',')[0].trim().slice(0,120);
 }
-async function isIpBanned(ip){
-  if(!ip)return false;
-  const q=await pool.query(`SELECT 1 FROM ip_bans WHERE ip=$1 AND (expires_at IS NULL OR expires_at>NOW())`,[ip]);
-  return q.rowCount>0;
-}
 async function audit(client,actorId,action,targetType,targetId,meta={}){
   await client.query(`INSERT INTO audit_logs(actor_id,action,target_type,target_id,meta) VALUES($1,$2,$3,$4,$5)`,
     [actorId||null,action,targetType||'',targetId?String(targetId):'',JSON.stringify(meta)]);
@@ -174,7 +169,8 @@ async function initDb(){
    status VARCHAR(20) NOT NULL DEFAULT 'pending',
    created_at TIMESTAMPTZ DEFAULT NOW(), paid_at TIMESTAMPTZ
  );
- CREATE TABLE IF NOT EXISTS withdrawals(
+  ALTER TABLE deposits ADD COLUMN IF NOT EXISTS payment_memo VARCHAR(80) DEFAULT '';
+CREATE TABLE IF NOT EXISTS withdrawals(
    id BIGSERIAL PRIMARY KEY,
    seller_id BIGINT NOT NULL REFERENCES users(id),
    amount BIGINT NOT NULL CHECK(amount>0),
@@ -298,7 +294,6 @@ function sign(u){return jwt.sign({id:u.id,role:u.role},JWT_SECRET,{expiresIn:'12
 function session(res,u){res.cookie('tg_session',sign(u),{httpOnly:true,secure:process.env.NODE_ENV==='production',sameSite:'lax',maxAge:12*60*60*1000})}
 async function auth(req,res,next){
  try{
-   if(await isIpBanned(ipOf(req)))return res.status(403).json({error:'Địa chỉ mạng này đang bị chặn do vi phạm hoặc hành vi bất thường.'});
    const t=req.cookies.tg_session;
    if(!t)return res.status(401).json({error:'Bạn chưa đăng nhập'});
    const p=jwt.verify(t,JWT_SECRET);
@@ -321,7 +316,7 @@ app.get('/api/config',(req,res)=>res.json({
 }));
 
 app.post('/api/auth/register',authLimiter,async(req,res)=>{
- const ip=ipOf(req); if(await isIpBanned(ip))return res.status(403).json({error:'Địa chỉ mạng đang bị chặn'});
+ const ip=ipOf(req);
  const username=String(req.body.username||'').trim(),email=String(req.body.email||'').trim().toLowerCase(),password=String(req.body.password||'');
  if(!/^[a-zA-Z0-9_]{4,40}$/.test(username)||!email.includes('@')||password.length<8)return res.status(400).json({error:'Thông tin đăng ký chưa hợp lệ'});
  try{
@@ -331,7 +326,7 @@ app.post('/api/auth/register',authLimiter,async(req,res)=>{
  }catch{return res.status(409).json({error:'Tên đăng nhập hoặc email đã tồn tại'})}
 });
 app.post('/api/auth/login',authLimiter,async(req,res)=>{
- const ip=ipOf(req); if(await isIpBanned(ip))return res.status(403).json({error:'Địa chỉ mạng đang bị chặn'});
+ const ip=ipOf(req);
  const identity=String(req.body.identity||'').trim(),password=String(req.body.password||'');
  const q=await pool.query(`SELECT * FROM users WHERE username=$1 OR email=$2`,[identity,identity.toLowerCase()]);
  const u=q.rows[0];
@@ -424,10 +419,19 @@ app.post('/api/complaints',auth,async(req,res)=>{
 });
 
 app.post('/api/deposits',auth,async(req,res)=>{
- const amount=Number(req.body.amount);if(!Number.isInteger(amount)||amount<10000)return res.status(400).json({error:'Số tiền nạp tối thiểu 10.000đ'});
- const code='TG'+req.user.id+Date.now().toString().slice(-8);
- const q=await pool.query(`INSERT INTO deposits(user_id,amount,transfer_code) VALUES($1,$2,$3) RETURNING *`,[req.user.id,amount,code]);
- res.json({...q.rows[0],bank:{name:BANK_NAME,account:BANK_ACCOUNT,accountName:BANK_ACCOUNT_NAME}});
+ const amount=Number(req.body.amount);
+ if(!Number.isInteger(amount)||amount<10000)return res.status(400).json({error:'Số tiền nạp tối thiểu 10.000đ'});
+ const memo='TG'+req.user.id+'NAP';
+ const old=(await pool.query(`SELECT * FROM deposits WHERE user_id=$1 AND status='pending' ORDER BY id DESC LIMIT 1`,[req.user.id])).rows[0];
+ let row;
+ if(old){
+   row=(await pool.query(`UPDATE deposits SET amount=$1,payment_memo=$2 WHERE id=$3 RETURNING *`,[amount,memo,old.id])).rows[0];
+ }else{
+   const internal='DEP'+req.user.id+'-'+Date.now();
+   row=(await pool.query(`INSERT INTO deposits(user_id,amount,transfer_code,payment_memo) VALUES($1,$2,$3,$4) RETURNING *`,
+     [req.user.id,amount,internal,memo])).rows[0];
+ }
+ res.json({...row,payment_memo:memo,bank:{name:'MB Bank',account:'11042004102005',accountName:'TRIEU CHOI CHAN'}});
 });
 app.get('/api/deposits/mine',auth,async(req,res)=>res.json((await pool.query(`SELECT * FROM deposits WHERE user_id=$1 ORDER BY id DESC`,[req.user.id])).rows));
 app.post('/api/payments/webhook',async(req,res)=>{
@@ -605,10 +609,6 @@ app.delete('/api/admin/users/:id',auth,admin,async(req,res)=>{
  if(Number(refs.rows[0].c)>0)return res.status(400).json({error:'Tài khoản đã có giao dịch. Hãy khóa thay vì xóa để giữ lịch sử.'});
  await pool.query(`DELETE FROM seller_applications WHERE user_id=$1`,[id]);await pool.query(`DELETE FROM users WHERE id=$1`,[id]);res.json({ok:true});
 });
-app.post('/api/admin/ip-ban',auth,admin,async(req,res)=>{
- const ip=String(req.body.ip||'').trim().slice(0,120);if(!ip)return res.status(400).json({error:'Thiếu IP'});
- await pool.query(`INSERT INTO ip_bans(ip,reason,created_by) VALUES($1,$2,$3) ON CONFLICT(ip) DO UPDATE SET reason=EXCLUDED.reason,created_by=EXCLUDED.created_by,expires_at=NULL`,[ip,String(req.body.reason||'Vi phạm'),req.user.id]);res.json({ok:true});
-});
 app.get('/api/admin/seller-applications',auth,admin,async(req,res)=>res.json((await pool.query(`SELECT a.*,u.username,u.email FROM seller_applications a JOIN users u ON u.id=a.user_id WHERE a.status='pending' ORDER BY a.id`)).rows));
 app.post('/api/admin/seller-applications/:id/approve',auth,admin,async(req,res)=>{
  const c=await pool.connect();try{await c.query('BEGIN');const a=(await c.query(`SELECT * FROM seller_applications WHERE id=$1 FOR UPDATE`,[req.params.id])).rows[0];if(!a||!a.accepted_rules)throw Error('Hồ sơ không hợp lệ');await c.query(`UPDATE seller_applications SET status='approved',updated_at=NOW() WHERE id=$1`,[a.id]);await c.query(`UPDATE users SET role='seller',seller_verification='verified' WHERE id=$1`,[a.user_id]);await audit(c,req.user.id,'APPROVE_SELLER','user',a.user_id,{});await c.query('COMMIT');res.json({ok:true})}catch(e){await c.query('ROLLBACK');res.status(400).json({error:e.message})}finally{c.release()}
@@ -644,7 +644,7 @@ app.post('/api/admin/complaints/:id/resolve',auth,admin,async(req,res)=>{
    await c.query('COMMIT');res.json({ok:true});
  }catch(e){await c.query('ROLLBACK');res.status(400).json({error:e.message})}finally{c.release()}
 });
-app.get('/api/admin/deposits',auth,admin,async(req,res)=>res.json((await pool.query(`SELECT d.*,u.username FROM deposits d JOIN users u ON u.id=d.user_id ORDER BY d.id DESC LIMIT 500`)).rows));
+app.get('/api/admin/deposits',auth,admin,async(req,res)=>res.json((await pool.query(`SELECT d.*,u.username,u.email FROM deposits d JOIN users u ON u.id=d.user_id ORDER BY d.id DESC LIMIT 500`)).rows));
 app.post('/api/admin/deposits/:id/approve',auth,admin,async(req,res)=>{
  const c=await pool.connect();try{await c.query('BEGIN');const d=(await c.query(`SELECT * FROM deposits WHERE id=$1 FOR UPDATE`,[req.params.id])).rows[0];if(!d||d.status!=='pending')throw Error('Giao dịch không hợp lệ');await c.query(`UPDATE deposits SET status='paid',provider_ref=$1,paid_at=NOW() WHERE id=$2`,['ADMIN-'+Date.now(),d.id]);await c.query(`UPDATE users SET balance=balance+$1 WHERE id=$2`,[d.amount,d.user_id]);await ledger(c,d.user_id,'DEPOSIT',Number(d.amount),'deposit',d.id,'Admin xác nhận tiền vào');await c.query('COMMIT');res.json({ok:true})}catch(e){await c.query('ROLLBACK');res.status(400).json({error:e.message})}finally{c.release()}
 });
@@ -678,19 +678,6 @@ initDb().then(async()=>{
  await releaseMatured();
  setInterval(releaseMatured,10*60*1000).unref();
  
-// BLUE PRO UPGRADE: IP ban management
-app.get('/api/admin/ip-bans',auth,admin,async(req,res)=>{
-  const q=await pool.query(`SELECT b.id,b.ip,b.reason,b.created_at,b.expires_at,u.username created_by_name
-    FROM ip_bans b LEFT JOIN users u ON u.id=b.created_by ORDER BY b.created_at DESC`);
-  res.json(q.rows);
-});
-app.delete('/api/admin/ip-bans/:id',auth,admin,async(req,res)=>{
-  const q=await pool.query(`DELETE FROM ip_bans WHERE id=$1 RETURNING id,ip`,[req.params.id]);
-  if(!q.rowCount)return res.status(404).json({error:'Không tìm thấy IP bị chặn'});
-  await audit(pool,req.user.id,'ip_unban','ip',q.rows[0].ip,{});
-  res.json({ok:true,ip:q.rows[0].ip});
-});
-
 // BLUE PRO UPGRADE: persistent Admin support inbox
 app.get('/api/admin/support-threads',auth,admin,async(req,res)=>{
   const q=await pool.query(`SELECT c.thread_key,
@@ -707,15 +694,6 @@ app.get('/api/admin/support-threads',auth,admin,async(req,res)=>{
 
 app.listen(PORT,'0.0.0.0',()=>console.log(`TAPHOAGAME FINAL BLUE PRO running on ${PORT}`));
 }).catch(e=>{console.error('Startup failed:',e);process.exit(1)});
-app.post('/api/admin/users/:id/unlock-all',auth,admin,async(req,res)=>{
- const id=Number(req.params.id);
- const q=await pool.query(`SELECT register_ip,last_login_ip FROM users WHERE id=$1`,[id]);
- if(!q.rowCount)return res.status(404).json({error:'Không tìm thấy tài khoản'});
- await pool.query(`UPDATE users SET status='active' WHERE id=$1`,[id]);
- const ips=[q.rows[0].register_ip,q.rows[0].last_login_ip].filter(Boolean);
- if(ips.length)await pool.query(`DELETE FROM ip_bans WHERE ip=ANY($1::text[])`,[ips]);
- res.json({ok:true});
-});
 app.get('/api/admin/community/messages',auth,admin,async(req,res)=>{
  const q=await pool.query(`SELECT m.id,m.body,m.created_at,u.id user_id,u.username,u.avatar_id,u.chat_muted FROM community_messages m JOIN users u ON u.id=m.user_id ORDER BY m.id DESC LIMIT 200`);
  res.json(q.rows);
