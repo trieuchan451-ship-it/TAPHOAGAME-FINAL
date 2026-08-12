@@ -19,4 +19,24 @@ function closeNotify(){document.getElementById('notify')?.classList.remove('open
 async function login(){try{const r=await api('/api/auth/login',{method:'POST',body:JSON.stringify({identity:li.value,password:lp.value})});location.href=r.redirect}catch(e){notify(e.message,'error','Đăng nhập thất bại')}}
 async function register(){try{await api('/api/auth/register',{method:'POST',body:JSON.stringify({username:ru.value,email:re.value,password:rp.value})});notify('Đăng ký thành công','success','Thành công');setTimeout(()=>location.href='/account.html',700)}catch(e){notify(e.message,'error','Đăng ký thất bại')}}
 async function logout(){await api('/api/auth/logout',{method:'POST'});location.href='/'}
-async function load(){const u=await current();if(!u){gate.innerHTML='<div class="empty">Bạn cần đăng nhập để chat với Admin.<br><br><button class="btn primary" onclick="openAuth()">ĐĂNG NHẬP</button></div>';return}const a=await api('/api/admin-id');if(!a.id){gate.innerHTML='<div class="empty">Chưa có quản trị viên trực tuyến.</div>';return}location.href='/chat.html?with='+a.id+'&channel=support'}load();</script></body></html>
+async function load(){const u=await current();if(!u){gate.innerHTML='<div class="empty">Bạn cần đăng nhập để chat với Admin.<br><br><button class="btn primary" onclick="openAuth()">ĐĂNG NHẬP</button></div>';return}const a=await api('/api/admin-id');if(!a.id){gate.innerHTML='<div class="empty">Chưa có quản trị viên trực tuyến.</div>';return}location.href='/chat.html?with='+a.id+'&channel=support'}load();</script>
+<script>
+(async function blueProUpgrade(){
+  try{
+    const r=await fetch('/api/me',{credentials:'include'});
+    const wallets=document.querySelectorAll('.wallet');
+    if(!r.ok){wallets.forEach(x=>x.classList.add('guest-hidden'))}
+    else{
+      const me=await r.json();
+      wallets.forEach(x=>{x.classList.remove('guest-hidden'); const b=x.querySelector('[data-balance],b'); if(b)b.textContent=Number(me.balance||0).toLocaleString('vi-VN')+'đ';});
+    }
+  }catch(e){document.querySelectorAll('.wallet').forEach(x=>x.classList.add('guest-hidden'))}
+  if(!localStorage.getItem('tg_cyber_notice_v1')){
+    const gate=document.createElement('div'); gate.className='cyber-gate';
+    gate.innerHTML=`<div class="cyber-card"><div style="display:flex;gap:14px;align-items:center"><img src="/assets/taphoa-game-brand.png" style="width:72px;height:72px;border-radius:50%"><div><small style="font-weight:900;color:#1769aa">THÔNG BÁO HIỂN THỊ TRƯỚC KHI VÀO TRANG</small><h2>Khuyến cáo an toàn không gian mạng</h2></div></div><p>Hãy bảo vệ tài khoản và tài sản của bạn khi giao dịch trực tuyến.</p><div class="legal-note"><b>⚠ Phòng chống lừa đảo</b><br>Không cung cấp mật khẩu, mã OTP hoặc thông tin đăng nhập cho người khác. Không giao dịch riêng ngoài hệ thống. Chỉ thanh toán theo thông tin được website hiển thị và lưu lại bằng chứng giao dịch.</div><p><b>Đối với người bán:</b> phải cung cấp thông tin trung thực, tuân thủ quy định của nền tảng và pháp luật. Cá nhân vi phạm phải tự chịu trách nhiệm về hành vi của mình.</p><p style="font-size:12px;opacity:.75">Đây là khuyến cáo an toàn của TAPHOAGAME, không phải thông báo chứng nhận hoặc bảo trợ của cơ quan nhà nước.</p><button id="acceptCyber">TÔI ĐÃ ĐỌC VÀ HIỂU — VÀO WEBSITE</button></div>`;
+    document.body.appendChild(gate);
+    document.getElementById('acceptCyber').onclick=()=>{localStorage.setItem('tg_cyber_notice_v1','1');gate.remove()};
+  }
+})();
+</script>
+</body></html>

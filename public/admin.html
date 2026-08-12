@@ -15,4 +15,45 @@ withdrawList.innerHTML=w.length?w.map(x=>`<div class="card">${x.username} • ${
 auditList.innerHTML=l.length?l.map(x=>`<div class="card"><b>${x.action}</b> • ${x.actor||'hệ thống'} • ${x.target_type} #${x.target_id}<div class="muted">${new Date(x.created_at).toLocaleString('vi-VN')}</div></div>`).join(''):'Chưa có nhật ký'}
 async function toggle(id){await api('/api/admin/users/'+id+'/toggle-lock',{method:'POST'});loadAll()}async function resetPw(id){const p=prompt('Nhập mật khẩu mới (tối thiểu 8 ký tự)');if(!p)return;try{await api('/api/admin/users/'+id+'/reset-password',{method:'POST',body:JSON.stringify({password:p})});alert('Đã đặt lại mật khẩu')}catch(e){alert(e.message)}}async function delUser(id){if(!confirm('Xóa tài khoản này? Tài khoản đã có giao dịch sẽ không thể xóa cứng.'))return;try{await api('/api/admin/users/'+id,{method:'DELETE'});loadAll()}catch(e){alert(e.message)}}async function banIp(ip){const r=prompt('Lý do cấm IP','Vi phạm / hành vi bất thường');if(r===null)return;await api('/api/admin/ip-ban',{method:'POST',body:JSON.stringify({ip,reason:r})});alert('Đã cấm IP')}
 async function approveSeller(id){await api('/api/admin/seller-applications/'+id+'/approve',{method:'POST'});loadAll()}async function rejectSeller(id){await api('/api/admin/seller-applications/'+id+'/reject',{method:'POST',body:JSON.stringify({note:'Từ chối bởi Admin'})});loadAll()}async function approveProduct(id){await api('/api/admin/products/'+id+'/approve',{method:'POST'});loadAll()}async function rejectProduct(id){await api('/api/admin/products/'+id+'/reject',{method:'POST',body:JSON.stringify({note:'Từ chối bởi Admin'})});loadAll()}async function approveAuction(id){await api('/api/admin/auctions/'+id+'/approve',{method:'POST'});loadAll()}async function cancelAuction(id){await api('/api/admin/auctions/'+id+'/cancel',{method:'POST'});loadAll()}async function resolveComplaint(id,decision){const note=prompt('Ghi chú xử lý','');await api('/api/admin/complaints/'+id+'/resolve',{method:'POST',body:JSON.stringify({decision,note})});loadAll()}async function approveDeposit(id){if(confirm('Đã kiểm tra tiền thực tế vào tài khoản?')){await api('/api/admin/deposits/'+id+'/approve',{method:'POST'});loadAll()}}async function approveWithdrawal(id){await api('/api/admin/withdrawals/'+id+'/approve',{method:'POST',body:JSON.stringify({note:'Đã chuyển khoản'})});loadAll()}async function rejectWithdrawal(id){await api('/api/admin/withdrawals/'+id+'/reject',{method:'POST',body:JSON.stringify({note:'Từ chối bởi Admin'})});loadAll()}loadAll();
-</script></body></html>
+</script>
+<script>
+(async function blueProUpgrade(){
+  try{
+    const r=await fetch('/api/me',{credentials:'include'});
+    const wallets=document.querySelectorAll('.wallet');
+    if(!r.ok){wallets.forEach(x=>x.classList.add('guest-hidden'))}
+    else{
+      const me=await r.json();
+      wallets.forEach(x=>{x.classList.remove('guest-hidden'); const b=x.querySelector('[data-balance],b'); if(b)b.textContent=Number(me.balance||0).toLocaleString('vi-VN')+'đ';});
+    }
+  }catch(e){document.querySelectorAll('.wallet').forEach(x=>x.classList.add('guest-hidden'))}
+  if(!localStorage.getItem('tg_cyber_notice_v1')){
+    const gate=document.createElement('div'); gate.className='cyber-gate';
+    gate.innerHTML=`<div class="cyber-card"><div style="display:flex;gap:14px;align-items:center"><img src="/assets/taphoa-game-brand.png" style="width:72px;height:72px;border-radius:50%"><div><small style="font-weight:900;color:#1769aa">THÔNG BÁO HIỂN THỊ TRƯỚC KHI VÀO TRANG</small><h2>Khuyến cáo an toàn không gian mạng</h2></div></div><p>Hãy bảo vệ tài khoản và tài sản của bạn khi giao dịch trực tuyến.</p><div class="legal-note"><b>⚠ Phòng chống lừa đảo</b><br>Không cung cấp mật khẩu, mã OTP hoặc thông tin đăng nhập cho người khác. Không giao dịch riêng ngoài hệ thống. Chỉ thanh toán theo thông tin được website hiển thị và lưu lại bằng chứng giao dịch.</div><p><b>Đối với người bán:</b> phải cung cấp thông tin trung thực, tuân thủ quy định của nền tảng và pháp luật. Cá nhân vi phạm phải tự chịu trách nhiệm về hành vi của mình.</p><p style="font-size:12px;opacity:.75">Đây là khuyến cáo an toàn của TAPHOAGAME, không phải thông báo chứng nhận hoặc bảo trợ của cơ quan nhà nước.</p><button id="acceptCyber">TÔI ĐÃ ĐỌC VÀ HIỂU — VÀO WEBSITE</button></div>`;
+    document.body.appendChild(gate);
+    document.getElementById('acceptCyber').onclick=()=>{localStorage.setItem('tg_cyber_notice_v1','1');gate.remove()};
+  }
+})();
+</script>
+
+<section class="panel" style="margin-top:18px">
+ <div class="panel-title">IP ĐANG BỊ CHẶN</div>
+ <div class="side-body"><div id="ipBanList">Đang tải...</div></div>
+</section>
+<section class="panel" style="margin-top:18px">
+ <div class="panel-title">HỘP THƯ HỖ TRỢ THÀNH VIÊN</div>
+ <div class="side-body"><div id="supportThreads">Đang tải...</div></div>
+</section>
+<script>
+async function loadUpgradeAdmin(){
+ try{
+  let r=await fetch('/api/admin/ip-bans'); let a=await r.json();
+  document.getElementById('ipBanList').innerHTML=a.length?a.map(x=>`<div style="padding:10px;border-bottom:1px solid #ccd8e4"><b>${x.ip}</b> — ${x.reason||'Không ghi lý do'} <button class="btn" onclick="unbanIp(${x.id})">BỎ CHẶN</button></div>`).join(''):'Không có IP nào đang bị chặn.';
+  r=await fetch('/api/admin/support-threads'); a=await r.json();
+  document.getElementById('supportThreads').innerHTML=a.length?a.map(x=>`<div style="padding:10px;border-bottom:1px solid #ccd8e4"><b>${x.username||('Thành viên #'+x.other_id)}</b> — ${x.unread||0} tin chưa đọc <a class="btn" href="/chat.html?with=${x.other_id}&channel=support">XEM CHAT</a></div>`).join(''):'Chưa có cuộc trò chuyện hỗ trợ.';
+ }catch(e){}
+}
+async function unbanIp(id){if(!confirm('Bỏ chặn IP này?'))return;const r=await fetch('/api/admin/ip-bans/'+id,{method:'DELETE'});const d=await r.json();alert(d.ok?'Đã bỏ chặn IP':(d.error||'Có lỗi'));loadUpgradeAdmin()}
+loadUpgradeAdmin();
+</script>
+</body></html>

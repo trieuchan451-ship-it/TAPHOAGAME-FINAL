@@ -23,4 +23,24 @@ async function logout(){await api('/api/auth/logout',{method:'POST'});location.h
 function card(p){return `<div class="panel product">${p.image?`<div class="thumb"><img src="/uploads/${p.image}"></div>`:`<div class="thumb"><div class="thumb-empty">TG</div></div>`}<div class="tag">ĐÃ DUYỆT</div><div class="product-body"><div class="code">#TG${String(p.id).padStart(4,'0')} • ${p.game.toUpperCase()}</div><h3>${p.title}</h3><p class="hint">${p.description}</p><div class="meta"><div><small>NGƯỜI BÁN</small><b>${p.seller}</b></div><div><small>BẢO HÀNH</small><b>${p.warranty_days} ngày</b></div><div><small>TRẠNG THÁI</small><b>ĐANG BÁN</b></div></div><div class="product-bottom"><div class="price">${money(p.price)}</div><div><button class="btn primary" onclick="buy(${p.id})">MUA NGAY</button> <button class="btn" onclick="chatSeller(${p.seller_id},${p.id})">CHAT</button></div></div></div></div>`}
 async function load(){await current();const q=new URLSearchParams(location.search),game=q.get('game'),text=(q.get('q')||'').toLowerCase();let p=await api('/api/products'+(game?'?game='+encodeURIComponent(game):''));if(text)p=p.filter(x=>(x.title+' '+x.description+' '+x.seller+' '+x.game).toLowerCase().includes(text));list.innerHTML=p.length?p.map(card).join(''):'<div class="empty" style="grid-column:1/-1">KHÔNG CÓ ACC PHÙ HỢP</div>'}
 async function buy(id){try{const r=await api('/api/orders/'+id+'/buy',{method:'POST'});notify('Mua thành công. Thông tin acc đã được lưu trong Lịch sử đơn hàng.','success','Mua hàng thành công');setTimeout(()=>location.href='/history.html',900)}catch(e){if(e.message.includes('đăng nhập'))openAuth();else notify(e.message,'error','Không thể mua')}}
-async function chatSeller(to,product){const u=await current();if(!u){openAuth();return}location.href='/chat.html?with='+to+'&product='+product+'&channel=buyer_seller'}load();</script></body></html>
+async function chatSeller(to,product){const u=await current();if(!u){openAuth();return}location.href='/chat.html?with='+to+'&product='+product+'&channel=buyer_seller'}load();</script>
+<script>
+(async function blueProUpgrade(){
+  try{
+    const r=await fetch('/api/me',{credentials:'include'});
+    const wallets=document.querySelectorAll('.wallet');
+    if(!r.ok){wallets.forEach(x=>x.classList.add('guest-hidden'))}
+    else{
+      const me=await r.json();
+      wallets.forEach(x=>{x.classList.remove('guest-hidden'); const b=x.querySelector('[data-balance],b'); if(b)b.textContent=Number(me.balance||0).toLocaleString('vi-VN')+'đ';});
+    }
+  }catch(e){document.querySelectorAll('.wallet').forEach(x=>x.classList.add('guest-hidden'))}
+  if(!localStorage.getItem('tg_cyber_notice_v1')){
+    const gate=document.createElement('div'); gate.className='cyber-gate';
+    gate.innerHTML=`<div class="cyber-card"><div style="display:flex;gap:14px;align-items:center"><img src="/assets/taphoa-game-brand.png" style="width:72px;height:72px;border-radius:50%"><div><small style="font-weight:900;color:#1769aa">THÔNG BÁO HIỂN THỊ TRƯỚC KHI VÀO TRANG</small><h2>Khuyến cáo an toàn không gian mạng</h2></div></div><p>Hãy bảo vệ tài khoản và tài sản của bạn khi giao dịch trực tuyến.</p><div class="legal-note"><b>⚠ Phòng chống lừa đảo</b><br>Không cung cấp mật khẩu, mã OTP hoặc thông tin đăng nhập cho người khác. Không giao dịch riêng ngoài hệ thống. Chỉ thanh toán theo thông tin được website hiển thị và lưu lại bằng chứng giao dịch.</div><p><b>Đối với người bán:</b> phải cung cấp thông tin trung thực, tuân thủ quy định của nền tảng và pháp luật. Cá nhân vi phạm phải tự chịu trách nhiệm về hành vi của mình.</p><p style="font-size:12px;opacity:.75">Đây là khuyến cáo an toàn của TAPHOAGAME, không phải thông báo chứng nhận hoặc bảo trợ của cơ quan nhà nước.</p><button id="acceptCyber">TÔI ĐÃ ĐỌC VÀ HIỂU — VÀO WEBSITE</button></div>`;
+    document.body.appendChild(gate);
+    document.getElementById('acceptCyber').onclick=()=>{localStorage.setItem('tg_cyber_notice_v1','1');gate.remove()};
+  }
+})();
+</script>
+</body></html>

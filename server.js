@@ -583,5 +583,33 @@ app.get('*',(req,res)=>res.sendFile(path.join(__dirname,'public','index.html')))
 initDb().then(async()=>{
  await releaseMatured();
  setInterval(releaseMatured,10*60*1000).unref();
- app.listen(PORT,'0.0.0.0',()=>console.log(`TAPHOAGAME FINAL BLUE PRO running on ${PORT}`));
+ 
+// BLUE PRO UPGRADE: IP ban management
+app.get('/api/admin/ip-bans',auth,admin,async(req,res)=>{
+  const q=await pool.query(`SELECT b.id,b.ip,b.reason,b.created_at,b.expires_at,u.username created_by_name
+    FROM ip_bans b LEFT JOIN users u ON u.id=b.created_by ORDER BY b.created_at DESC`);
+  res.json(q.rows);
+});
+app.delete('/api/admin/ip-bans/:id',auth,admin,async(req,res)=>{
+  const q=await pool.query(`DELETE FROM ip_bans WHERE id=$1 RETURNING id,ip`,[req.params.id]);
+  if(!q.rowCount)return res.status(404).json({error:'Không tìm thấy IP bị chặn'});
+  await audit(pool,req.user.id,'ip_unban','ip',q.rows[0].ip,{});
+  res.json({ok:true,ip:q.rows[0].ip});
+});
+
+// BLUE PRO UPGRADE: persistent Admin support inbox
+app.get('/api/admin/support-threads',auth,admin,async(req,res)=>{
+  const q=await pool.query(`SELECT c.thread_key,
+    MAX(c.created_at) last_message_at,
+    COUNT(*) FILTER (WHERE c.recipient_id=$1 AND c.read_at IS NULL) unread,
+    MAX(CASE WHEN c.sender_id<>$1 THEN c.sender_id WHEN c.recipient_id<>$1 THEN c.recipient_id END) other_id,
+    MAX(CASE WHEN c.sender_id<>$1 THEN su.username WHEN c.recipient_id<>$1 THEN ru.username END) username
+    FROM chats c
+    JOIN users su ON su.id=c.sender_id JOIN users ru ON ru.id=c.recipient_id
+    WHERE c.channel='support' AND (c.sender_id=$1 OR c.recipient_id=$1)
+    GROUP BY c.thread_key ORDER BY last_message_at DESC`,[req.user.id]);
+  res.json(q.rows);
+});
+
+app.listen(PORT,'0.0.0.0',()=>console.log(`TAPHOAGAME FINAL BLUE PRO running on ${PORT}`));
 }).catch(e=>{console.error('Startup failed:',e);process.exit(1)});

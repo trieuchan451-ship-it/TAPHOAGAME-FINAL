@@ -22,4 +22,24 @@ async function logout(){await api('/api/auth/logout',{method:'POST'});location.h
 
 function card(p){return `<div class="panel product">${p.image?`<div class="thumb"><img src="/uploads/${p.image}"></div>`:`<div class="thumb"><div class="thumb-empty">TG</div></div>`}<div class="tag">ĐÃ DUYỆT</div><div class="product-body"><div class="code">#TG${String(p.id).padStart(4,'0')} • ${p.game.toUpperCase()}</div><h3>${p.title}</h3><div class="meta"><div><small>NGƯỜI BÁN</small><b>${p.seller}</b></div><div><small>BẢO HÀNH</small><b>${p.warranty_days} ngày</b></div><div><small>TRẠNG THÁI</small><b>ĐANG BÁN</b></div></div><div class="product-bottom"><div class="price">${money(p.price)}</div><a class="btn primary" href="/products.html?id=${p.id}">XEM ACC</a></div></div></div>`}
 async function quickLogin(){try{const r=await api('/api/auth/login',{method:'POST',body:JSON.stringify({identity:qi.value,password:qp.value})});location.href=r.redirect}catch(e){notify(e.message,'error','Đăng nhập thất bại')}}
-async function load(){const u=await current(),p=await api('/api/products');cnt.textContent=p.length;featured.innerHTML=p.length?p.slice(0,8).map(card).join(''):'<div class="empty" style="grid-column:1/-1">CHƯA CÓ ACC ĐƯỢC DUYỆT</div>';if(u)quick.innerHTML=`<b>${u.username}</b><div class="hint">${u.role==='seller'?'Người bán':u.role==='admin'?'Quản trị viên':'Thành viên'} • ${u.email}</div><div class="stat" style="padding-left:0"><small>SỐ DƯ</small><b>${money(u.balance)}</b></div><button class="btn primary" style="width:100%" onclick="goAccount()">VÀO TÀI KHOẢN</button>`;if(new URLSearchParams(location.search).has('login'))openAuth()}load();</script></body></html>
+async function load(){const u=await current(),p=await api('/api/products');cnt.textContent=p.length;featured.innerHTML=p.length?p.slice(0,8).map(card).join(''):'<div class="empty" style="grid-column:1/-1">CHƯA CÓ ACC ĐƯỢC DUYỆT</div>';if(u)quick.innerHTML=`<b>${u.username}</b><div class="hint">${u.role==='seller'?'Người bán':u.role==='admin'?'Quản trị viên':'Thành viên'} • ${u.email}</div><div class="stat" style="padding-left:0"><small>SỐ DƯ</small><b>${money(u.balance)}</b></div><button class="btn primary" style="width:100%" onclick="goAccount()">VÀO TÀI KHOẢN</button>`;if(new URLSearchParams(location.search).has('login'))openAuth()}load();</script>
+<script>
+(async function blueProUpgrade(){
+  try{
+    const r=await fetch('/api/me',{credentials:'include'});
+    const wallets=document.querySelectorAll('.wallet');
+    if(!r.ok){wallets.forEach(x=>x.classList.add('guest-hidden'))}
+    else{
+      const me=await r.json();
+      wallets.forEach(x=>{x.classList.remove('guest-hidden'); const b=x.querySelector('[data-balance],b'); if(b)b.textContent=Number(me.balance||0).toLocaleString('vi-VN')+'đ';});
+    }
+  }catch(e){document.querySelectorAll('.wallet').forEach(x=>x.classList.add('guest-hidden'))}
+  if(!localStorage.getItem('tg_cyber_notice_v1')){
+    const gate=document.createElement('div'); gate.className='cyber-gate';
+    gate.innerHTML=`<div class="cyber-card"><div style="display:flex;gap:14px;align-items:center"><img src="/assets/taphoa-game-brand.png" style="width:72px;height:72px;border-radius:50%"><div><small style="font-weight:900;color:#1769aa">THÔNG BÁO HIỂN THỊ TRƯỚC KHI VÀO TRANG</small><h2>Khuyến cáo an toàn không gian mạng</h2></div></div><p>Hãy bảo vệ tài khoản và tài sản của bạn khi giao dịch trực tuyến.</p><div class="legal-note"><b>⚠ Phòng chống lừa đảo</b><br>Không cung cấp mật khẩu, mã OTP hoặc thông tin đăng nhập cho người khác. Không giao dịch riêng ngoài hệ thống. Chỉ thanh toán theo thông tin được website hiển thị và lưu lại bằng chứng giao dịch.</div><p><b>Đối với người bán:</b> phải cung cấp thông tin trung thực, tuân thủ quy định của nền tảng và pháp luật. Cá nhân vi phạm phải tự chịu trách nhiệm về hành vi của mình.</p><p style="font-size:12px;opacity:.75">Đây là khuyến cáo an toàn của TAPHOAGAME, không phải thông báo chứng nhận hoặc bảo trợ của cơ quan nhà nước.</p><button id="acceptCyber">TÔI ĐÃ ĐỌC VÀ HIỂU — VÀO WEBSITE</button></div>`;
+    document.body.appendChild(gate);
+    document.getElementById('acceptCyber').onclick=()=>{localStorage.setItem('tg_cyber_notice_v1','1');gate.remove()};
+  }
+})();
+</script>
+</body></html>

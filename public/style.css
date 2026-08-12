@@ -18,3 +18,15 @@ input,select,textarea{width:100%;padding:11px 12px;margin:5px 0;background:#fbfd
 .support-float{position:fixed;right:16px;bottom:18px;z-index:70;display:grid;gap:8px}.support-float a{width:46px;height:46px;border-radius:50%;display:grid;place-items:center;text-decoration:none;color:#fff;font-weight:1000;box-shadow:0 10px 25px rgba(0,86,145,.23);border:2px solid #fff}.tg{background:#249bd7}.fb{background:#1877f2}.phone{background:#16a66a}
 .mobile-nav{display:none}
 @media(max-width:1200px){.layout{grid-template-columns:215px 1fr}.right{display:none}.grid{grid-template-columns:repeat(3,1fr)}}@media(max-width:900px){.head{grid-template-columns:1fr auto}.search{grid-column:1/-1}.layout{grid-template-columns:1fr}.left{display:none}.grid{grid-template-columns:repeat(2,1fr)}.info-grid{grid-template-columns:repeat(2,1fr)}}@media(max-width:620px){body{padding-bottom:76px}.head{padding:9px 10px}.brand-logo{width:38px;height:38px}.brand strong{font-size:15px}.search,.wallet,.nav{display:none}.page{padding:9px}.hero{min-height:285px;padding:21px}.hero h1{font-size:31px}.hero:after{width:200px;height:200px}.grid,.row,.info-grid{grid-template-columns:1fr}.thumb{height:190px}.support-float{right:10px;bottom:88px}.mobile-nav{display:grid;position:fixed;left:8px;right:8px;bottom:8px;z-index:75;grid-template-columns:repeat(5,1fr);background:#ffffffee;border:1px solid #abd7ee;border-radius:14px;padding:7px;box-shadow:0 12px 35px rgba(0,94,150,.16)}.mobile-nav a{text-decoration:none;text-align:center;font-size:7px;font-weight:1000;color:#0e5f93;padding:7px 2px}}
+
+/* === BLUE PRO UPGRADE === */
+:root{--page:#e8f1f8;--page2:#dce9f4;--card:#f7fbff;--ink:#10233c}
+body{background:linear-gradient(180deg,var(--page),var(--page2)) fixed!important;color:var(--ink)}
+.header,.panel,.hero,.stat,.product,.auction,.card,.box{box-shadow:0 10px 28px rgba(20,55,90,.08)}
+.brand-logo{width:52px!important;height:52px!important;border-radius:50%!important;background:url('/assets/taphoa-game-brand.png') center/cover no-repeat!important;font-size:0!important;border:2px solid rgba(255,255,255,.8)}
+.wallet.guest-hidden{display:none!important}
+.cyber-gate{position:fixed;inset:0;z-index:99999;background:rgba(7,23,42,.72);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;padding:18px}
+.cyber-gate.hide{display:none}
+.cyber-card{max-width:680px;width:100%;background:#f3f8fc;border:1px solid #9ebbd3;border-radius:22px;padding:28px;box-shadow:0 24px 80px rgba(0,0,0,.3);color:#10233c}
+.cyber-card h2{margin:0 0 10px}.cyber-card p{line-height:1.6}.cyber-card .legal-note{background:#e1edf6;border-radius:14px;padding:14px;margin:14px 0}
+.cyber-card button{width:100%;padding:13px;border:0;border-radius:12px;background:#1769aa;color:white;font-weight:800;cursor:pointer}
