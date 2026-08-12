@@ -85,3 +85,5 @@ NEON MARKETPLACE v50
 - Có /favorites.html và /cart.html.
 - Trang con có nút Trở về.
 - Admin giao diện gọn: tổng nạp, lần nạp gần nhất, hoạt động gần nhất, online/offline, IP, quản lý người bán/gian hàng.
+
+V60 PRO: avatar, community chat, category warehouse, animated hero, auction dialogs/close, admin unlock-all.

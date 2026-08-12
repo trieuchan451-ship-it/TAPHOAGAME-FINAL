@@ -92,6 +92,15 @@ async function initDb(){
  ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login_ip VARCHAR(120) DEFAULT '';
  ALTER TABLE users ADD COLUMN IF NOT EXISTS last_seen_at TIMESTAMPTZ;
 
+ ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_id INT DEFAULT 1;
+ ALTER TABLE users ADD COLUMN IF NOT EXISTS chat_muted BOOLEAN DEFAULT FALSE;
+ CREATE TABLE IF NOT EXISTS community_messages(
+   id SERIAL PRIMARY KEY,user_id INT REFERENCES users(id) ON DELETE CASCADE,
+   body TEXT NOT NULL,created_at TIMESTAMPTZ DEFAULT NOW()
+ );
+ CREATE INDEX IF NOT EXISTS idx_community_messages_created ON community_messages(created_at DESC);
+
+
  CREATE TABLE IF NOT EXISTS seller_applications(
    id BIGSERIAL PRIMARY KEY,
    user_id BIGINT UNIQUE NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -291,7 +300,7 @@ async function auth(req,res,next){
    const t=req.cookies.tg_session;
    if(!t)return res.status(401).json({error:'Bạn chưa đăng nhập'});
    const p=jwt.verify(t,JWT_SECRET);
-   const q=await pool.query(`SELECT id,username,email,role,status,phone,seller_verification,balance,seller_balance,held_balance,created_at FROM users WHERE id=$1`,[p.id]);
+   const q=await pool.query(`SELECT id,username,email,role,status,phone,seller_verification,balance,seller_balance,held_balance,created_at,avatar_id,chat_muted FROM users WHERE id=$1`,[p.id]);
    if(!q.rowCount)return res.status(401).json({error:'Phiên đăng nhập không hợp lệ'});
    if(q.rows[0].status!=='active')return res.status(403).json({error:'Tài khoản đang bị khóa'});
    req.user=q.rows[0]; pool.query(`UPDATE users SET last_seen_at=NOW() WHERE id=$1`,[req.user.id]).catch(()=>{}); next();
@@ -498,6 +507,15 @@ app.post('/api/auctions/:id/bid',auth,async(req,res)=>{
 });
 
 /* ADMIN */
+
+app.post('/api/me/avatar',auth,async(req,res)=>{const avatar_id=Number(req.body.avatar_id);if(!Number.isInteger(avatar_id)||avatar_id<1||avatar_id>20)return res.status(400).json({error:'Avatar không hợp lệ'});await pool.query(`UPDATE users SET avatar_id=$1 WHERE id=$2`,[avatar_id,req.user.id]);res.json({ok:true,avatar_id})});
+app.get('/api/community/messages',async(req,res)=>{const q=await pool.query(`SELECT m.id,m.body,m.created_at,u.id user_id,u.username,u.avatar_id FROM community_messages m JOIN users u ON u.id=m.user_id ORDER BY m.id DESC LIMIT 80`);res.json(q.rows.reverse())});
+app.post('/api/community/messages',auth,async(req,res)=>{const uq=await pool.query(`SELECT chat_muted FROM users WHERE id=$1`,[req.user.id]);if(uq.rows[0]?.chat_muted)return res.status(403).json({error:'Tài khoản đang bị hạn chế trò chuyện'});const body=String(req.body.body||'').trim().replace(/[<>]/g,'');if(!body||body.length>300)return res.status(400).json({error:'Tin nhắn phải từ 1 đến 300 ký tự'});const recent=await pool.query(`SELECT COUNT(*)::int n FROM community_messages WHERE user_id=$1 AND created_at>NOW()-INTERVAL '10 seconds'`,[req.user.id]);if(recent.rows[0].n>=4)return res.status(429).json({error:'Bạn gửi quá nhanh'});const q=await pool.query(`INSERT INTO community_messages(user_id,body) VALUES($1,$2) RETURNING id,body,created_at`,[req.user.id,body]);res.json(q.rows[0])});
+app.delete('/api/admin/community/messages/:id',auth,admin,async(req,res)=>{await pool.query(`DELETE FROM community_messages WHERE id=$1`,[Number(req.params.id)]);res.json({ok:true})});
+app.post('/api/admin/users/:id/chat-mute',auth,admin,async(req,res)=>{await pool.query(`UPDATE users SET chat_muted=NOT chat_muted WHERE id=$1`,[Number(req.params.id)]);res.json({ok:true})});
+app.get('/api/admin/community/messages',auth,admin,async(req,res)=>{const q=await pool.query(`SELECT m.id,m.body,m.created_at,u.id user_id,u.username,u.avatar_id,u.chat_muted FROM community_messages m JOIN users u ON u.id=m.user_id ORDER BY m.id DESC LIMIT 200`);res.json(q.rows)});
+app.post('/api/auctions/:id/close',auth,async(req,res)=>{const client=await pool.connect();try{await client.query('BEGIN');const aq=await client.query(`SELECT * FROM auctions WHERE id=$1 FOR UPDATE`,[Number(req.params.id)]);if(!aq.rowCount)throw Error('Không tìm thấy phiên đấu giá');const a=aq.rows[0];if(Number(a.seller_id)!==Number(req.user.id)){await client.query('ROLLBACK');return res.status(403).json({error:'Không có quyền chốt phiên này'})}if(a.status!=='active')throw Error('Phiên đấu giá không còn hoạt động');if(!a.highest_bidder_id)throw Error('Chưa có người trả giá');await client.query(`UPDATE auctions SET status='ended',ends_at=NOW() WHERE id=$1`,[a.id]);await client.query('COMMIT');res.json({ok:true,winner_id:a.highest_bidder_id,amount:a.current_price})}catch(e){await client.query('ROLLBACK');res.status(400).json({error:e.message})}finally{client.release()}});
+
 app.get('/api/admin/stats',auth,admin,async(req,res)=>{
  await releaseMatured();
  const [u,s,p,o,h,c]=await Promise.all([
@@ -638,3 +656,17 @@ app.get('/api/admin/support-threads',auth,admin,async(req,res)=>{
 
 app.listen(PORT,'0.0.0.0',()=>console.log(`TAPHOAGAME FINAL BLUE PRO running on ${PORT}`));
 }).catch(e=>{console.error('Startup failed:',e);process.exit(1)});
+app.post('/api/admin/users/:id/unlock-all',auth,admin,async(req,res)=>{
+ const id=Number(req.params.id);
+ const q=await pool.query(`SELECT register_ip,last_login_ip FROM users WHERE id=$1`,[id]);
+ if(!q.rowCount)return res.status(404).json({error:'Không tìm thấy tài khoản'});
+ await pool.query(`UPDATE users SET status='active' WHERE id=$1`,[id]);
+ const ips=[q.rows[0].register_ip,q.rows[0].last_login_ip].filter(Boolean);
+ if(ips.length)await pool.query(`DELETE FROM ip_bans WHERE ip=ANY($1::text[])`,[ips]);
+ res.json({ok:true});
+});
+app.get('/api/admin/community/messages',auth,admin,async(req,res)=>{
+ const q=await pool.query(`SELECT m.id,m.body,m.created_at,u.id user_id,u.username,u.avatar_id,u.chat_muted FROM community_messages m JOIN users u ON u.id=m.user_id ORDER BY m.id DESC LIMIT 200`);
+ res.json(q.rows);
+});
+
