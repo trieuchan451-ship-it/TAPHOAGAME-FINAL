@@ -65,6 +65,9 @@ async function ledger(client,userId,kind,amount,refType,refId,note=''){
     [userId,kind,amount,refType||'',refId?String(refId):'',note]);
 }
 
+function makeTradeCode(prefix='GD'){
+  return prefix+'-'+Date.now().toString(36).toUpperCase()+'-'+crypto.randomBytes(4).toString('hex').toUpperCase();
+}
 async function notifyUser(client,userId,type,title,body='',link=''){
   await client.query(`INSERT INTO notifications(user_id,type,title,body,link) VALUES($1,$2,$3,$4,$5)`,
     [userId,type||'info',String(title||'Thông báo').slice(0,160),String(body||'').slice(0,1000),String(link||'').slice(0,500)]);
@@ -153,8 +156,11 @@ async function initDb(){
    created_at TIMESTAMPTZ DEFAULT NOW()
  );
  ALTER TABLE products ADD COLUMN IF NOT EXISTS warranty_days INT NOT NULL DEFAULT 3;
+ ALTER TABLE products ADD COLUMN IF NOT EXISTS listing_code VARCHAR(40);
+ CREATE UNIQUE INDEX IF NOT EXISTS idx_products_listing_code ON products(listing_code) WHERE listing_code IS NOT NULL;
  ALTER TABLE products DROP CONSTRAINT IF EXISTS products_game_check;
  ALTER TABLE products ADD CONSTRAINT products_game_check CHECK(game IN ('lienquan','freefire','pubg','lol','khac'));
+ UPDATE products SET listing_code='GD-OLD-'||id WHERE listing_code IS NULL;
 
 
  CREATE TABLE IF NOT EXISTS favorites(
@@ -184,6 +190,8 @@ async function initDb(){
  ALTER TABLE orders ADD COLUMN IF NOT EXISTS release_status VARCHAR(20) NOT NULL DEFAULT 'held';
  ALTER TABLE orders ADD COLUMN IF NOT EXISTS hold_until TIMESTAMPTZ NOT NULL DEFAULT (NOW()+INTERVAL '72 hours');
  ALTER TABLE orders ADD COLUMN IF NOT EXISTS released_at TIMESTAMPTZ;
+ ALTER TABLE orders ADD COLUMN IF NOT EXISTS order_code VARCHAR(40);
+ CREATE UNIQUE INDEX IF NOT EXISTS idx_orders_order_code ON orders(order_code) WHERE order_code IS NOT NULL;
 
 
  CREATE TABLE IF NOT EXISTS seller_reviews(
@@ -356,7 +364,16 @@ async function auth(req,res,next){
 function admin(req,res,next){if(req.user?.role!=='admin')return res.status(403).json({error:'Không có quyền quản trị'});next()}
 function seller(req,res,next){if(!['seller','admin'].includes(req.user?.role))return res.status(403).json({error:'Tài khoản chưa được duyệt bán hàng'});next()}
 
-app.use('/uploads',express.static(uploadsDir));
+app.use('/uploads',async(req,res,next)=>{
+ try{
+  const filename=path.basename(String(req.path||'').replace(/^\/+/,''));
+  if(filename){
+   const q=await pool.query(`SELECT 1 FROM seller_applications WHERE cccd_front=$1 OR cccd_back=$1 LIMIT 1`,[filename]);
+   if(q.rowCount)return res.status(404).send('Không tìm thấy');
+  }
+ }catch(e){}
+ next();
+},express.static(uploadsDir));
 app.use(express.static(path.join(__dirname,'public')));
 
 app.get('/health',async(req,res)=>{try{await pool.query('SELECT 1');res.json({ok:true,version:'FINAL-BLUE-PRO'})}catch{res.status(500).json({ok:false})}});
@@ -415,7 +432,7 @@ app.post('/api/seller/apply',auth,upload.fields([{name:'cccd_front',maxCount:1},
 app.get('/api/products',async(req,res)=>{
  const vals=[];let where=`p.status='approved' AND u.status='active'`;
  if(req.query.game){vals.push(req.query.game);where+=` AND p.game=$${vals.length}`}
- const q=await pool.query(`SELECT p.id,p.game,p.title,p.description,p.price,p.image,p.warranty_days,p.created_at,u.id seller_id,u.username seller,
+ const q=await pool.query(`SELECT p.id,p.game,p.title,p.description,p.price,p.image,p.warranty_days,p.listing_code,p.created_at,u.id seller_id,u.username seller,
  COALESCE((SELECT ROUND(AVG(sr.rating)::numeric,1) FROM seller_reviews sr WHERE sr.seller_id=u.id),0) seller_rating,
  COALESCE((SELECT COUNT(*) FROM seller_reviews sr WHERE sr.seller_id=u.id),0) seller_reviews,
  COALESCE((SELECT COUNT(*) FROM orders oo WHERE oo.seller_id=u.id),0) seller_sales
@@ -424,8 +441,9 @@ app.get('/api/products',async(req,res)=>{
 app.post('/api/products',auth,seller,upload.single('image'),async(req,res)=>{
  const {game,title,description,account_login,account_password}=req.body,price=Number(req.body.price),warranty=Number(req.body.warranty_days||3);
  if(!['lienquan','freefire','pubg','lol','khac'].includes(game)||!title||!description||!account_login||!account_password||!Number.isInteger(price)||price<=0)return res.status(400).json({error:'Thông tin acc chưa hợp lệ'});
- const q=await pool.query(`INSERT INTO products(seller_id,game,title,description,price,image,account_login,account_password,warranty_days) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id,status`,
- [req.user.id,game,title,description,price,req.file?.filename||null,account_login,account_password,Math.max(0,Math.min(365,warranty))]);
+ const listingCode=makeTradeCode('GD');
+ const q=await pool.query(`INSERT INTO products(seller_id,game,title,description,price,image,account_login,account_password,warranty_days,listing_code) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING id,status,listing_code`,
+ [req.user.id,game,title,description,price,req.file?.filename||null,account_login,account_password,Math.max(0,Math.min(365,warranty)),listingCode]);
  res.json(q.rows[0]);
 });
 
@@ -454,7 +472,7 @@ app.post('/api/orders/:id/buy',auth,async(req,res)=>{
 });
 app.get('/api/orders/mine',auth,async(req,res)=>{
  await releaseMatured();
- const q=await pool.query(`SELECT o.id,o.amount,o.fee,o.seller_net,o.status,o.release_status,o.hold_until,o.created_at,p.title,p.game,p.warranty_days,
+ const q=await pool.query(`SELECT o.id,o.order_code,o.amount,o.fee,o.seller_net,o.status,o.release_status,o.hold_until,o.created_at,p.title,p.game,p.listing_code,p.warranty_days,
  CASE WHEN o.buyer_id=$1 THEN p.account_login END account_login,
  CASE WHEN o.buyer_id=$1 THEN p.account_password END account_password,
  CASE WHEN o.buyer_id=$1 THEN 'buyer' ELSE 'seller' END relation
@@ -581,7 +599,7 @@ app.post('/api/auctions/:id/bid',auth,async(req,res)=>{
 app.get('/api/seller/dashboard',auth,seller,async(req,res)=>{
  await pool.query(`UPDATE auctions SET status='ended' WHERE seller_id=$1 AND status='approved' AND ends_at<=NOW()`,[req.user.id]);
  const [products,orders,auctions,complaints,withdrawals]=await Promise.all([
-  pool.query(`SELECT id,game,title,price,status,image,warranty_days,created_at FROM products WHERE seller_id=$1 ORDER BY id DESC`,[req.user.id]),
+  pool.query(`SELECT id,game,title,price,status,image,warranty_days,listing_code,created_at FROM products WHERE seller_id=$1 ORDER BY id DESC`,[req.user.id]),
   pool.query(`SELECT o.id,o.amount,o.seller_net,o.status,o.release_status,o.hold_until,o.created_at,p.title,p.game,b.username buyer
               FROM orders o JOIN products p ON p.id=o.product_id JOIN users b ON b.id=o.buyer_id
               WHERE o.seller_id=$1 ORDER BY o.id DESC`,[req.user.id]),
@@ -725,6 +743,17 @@ app.delete('/api/admin/users/:id',auth,admin,async(req,res)=>{
  if(Number(refs.rows[0].c)>0)return res.status(400).json({error:'Tài khoản đã có giao dịch. Hãy khóa thay vì xóa để giữ lịch sử.'});
  await pool.query(`DELETE FROM seller_applications WHERE user_id=$1`,[id]);await pool.query(`DELETE FROM users WHERE id=$1`,[id]);res.json({ok:true});
 });
+app.get('/api/admin/seller-applications/:id/cccd/:side',auth,admin,async(req,res)=>{
+ const side=req.params.side==='back'?'cccd_back':'cccd_front';
+ const q=await pool.query(`SELECT cccd_front,cccd_back FROM seller_applications WHERE id=$1`,[Number(req.params.id)]);
+ if(!q.rowCount)return res.status(404).send('Không tìm thấy hồ sơ');
+ const filename=path.basename(String(q.rows[0][side]||''));
+ if(!filename)return res.status(404).send('Không có ảnh');
+ const full=path.join(uploadsDir,filename);
+ if(!fs.existsSync(full))return res.status(404).send('Ảnh không còn trên máy chủ');
+ res.setHeader('Cache-Control','private, no-store');
+ res.sendFile(full);
+});
 app.get('/api/admin/seller-applications',auth,admin,async(req,res)=>res.json((await pool.query(`SELECT a.*,u.username,u.email FROM seller_applications a JOIN users u ON u.id=a.user_id ORDER BY CASE WHEN a.status='pending' THEN 0 ELSE 1 END,a.id DESC`)).rows));
 app.post('/api/admin/seller-applications/:id/approve',auth,admin,async(req,res)=>{
  const c=await pool.connect();try{await c.query('BEGIN');const a=(await c.query(`SELECT * FROM seller_applications WHERE id=$1 FOR UPDATE`,[req.params.id])).rows[0];if(!a||!a.accepted_rules)throw Error('Hồ sơ không hợp lệ');await c.query(`UPDATE seller_applications SET status='approved',updated_at=NOW() WHERE id=$1`,[a.id]);await c.query(`UPDATE users SET role='seller',seller_verification='verified' WHERE id=$1`,[a.user_id]);await audit(c,req.user.id,'APPROVE_SELLER','user',a.user_id,{});await notifyUser(c,a.user_id,'seller','Hồ sơ người bán đã được duyệt','Bạn đã có thể sử dụng Trung tâm người bán.','/seller.html');await c.query('COMMIT');res.json({ok:true})}catch(e){await c.query('ROLLBACK');res.status(400).json({error:e.message})}finally{c.release()}
@@ -733,7 +762,7 @@ app.post('/api/admin/seller-applications/:id/reject',auth,admin,async(req,res)=>
  const a=(await pool.query(`SELECT * FROM seller_applications WHERE id=$1`,[req.params.id])).rows[0];if(!a)return res.status(404).json({error:'Không tìm thấy'});
  await pool.query(`UPDATE seller_applications SET status='rejected',admin_note=$1,updated_at=NOW() WHERE id=$2`,[String(req.body.note||''),a.id]);await pool.query(`UPDATE users SET seller_verification='rejected' WHERE id=$1`,[a.user_id]);await notifyUser(pool,a.user_id,'seller','Hồ sơ người bán chưa được duyệt',String(req.body.note||'Vui lòng kiểm tra và gửi lại hồ sơ.'),'/seller.html');res.json({ok:true});
 });
-app.get('/api/admin/products',auth,admin,async(req,res)=>res.json((await pool.query(`SELECT p.id,p.title,p.game,p.price,p.status,p.created_at,u.username seller FROM products p JOIN users u ON u.id=p.seller_id ORDER BY p.id DESC LIMIT 500`)).rows));
+app.get('/api/admin/products',auth,admin,async(req,res)=>res.json((await pool.query(`SELECT p.id,p.title,p.game,p.price,p.status,p.listing_code,p.created_at,u.username seller FROM products p JOIN users u ON u.id=p.seller_id ORDER BY p.id DESC LIMIT 500`)).rows));
 app.post('/api/admin/products/:id/approve',auth,admin,async(req,res)=>{await pool.query(`UPDATE products SET status='approved' WHERE id=$1 AND status='pending'`,[req.params.id]);res.json({ok:true})});
 app.post('/api/admin/products/:id/reject',auth,admin,async(req,res)=>{await pool.query(`UPDATE products SET status='rejected',admin_note=$1 WHERE id=$2 AND status='pending'`,[String(req.body.note||''),req.params.id]);res.json({ok:true})});
 app.get('/api/admin/complaints',auth,admin,async(req,res)=>res.json((await pool.query(`SELECT c.*,b.username buyer,s.username seller,p.title FROM complaints c JOIN users b ON b.id=c.buyer_id JOIN users s ON s.id=c.seller_id JOIN orders o ON o.id=c.order_id JOIN products p ON p.id=o.product_id ORDER BY c.id DESC`)).rows));

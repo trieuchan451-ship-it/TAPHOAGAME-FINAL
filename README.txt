@@ -131,3 +131,11 @@ V68 FULL UPGRADE
 - Thêm cảnh báo hệ thống cho Admin.
 - Yêu thích đồng bộ database, tài khoản đã xem gần đây, lịch sử biến động ví.
 - Webhook thanh toán generic có thể nhận fixed memo và kiểm tra số tiền; muốn tự động thực tế vẫn cần cấu hình nhà cung cấp webhook/API.
+
+V69 ITEM CODE + CCCD
+- Mỗi mặt hàng đăng bán được cấp mã giao dịch riêng (listing_code), ví dụ GD-...
+- Các mặt hàng cũ tự nhận mã GD-OLD-<id>.
+- Khi phát sinh đơn mua, đơn hàng có mã riêng DH-...
+- Mã giao dịch hiển thị trên card sản phẩm, Trung tâm người bán, lịch sử đơn và Admin.
+- Ảnh CCCD người đăng ký người bán không còn mở công khai qua /uploads.
+- Admin có nút XEM CCCD TRƯỚC / SAU và xem trong popup bảo vệ bằng phiên đăng nhập Admin.
