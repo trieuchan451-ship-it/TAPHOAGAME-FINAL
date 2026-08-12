@@ -12,5 +12,3 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-s
 .card h2{font-size:16px;font-weight:700;letter-spacing:-.2px}.stat small{font-size:10px!important;font-weight:650;letter-spacing:.15px}.stat b{font-size:26px!important;font-weight:750!important;letter-spacing:-.6px}
 th{font-size:10px!important;font-weight:700!important;letter-spacing:.2px}td{font-size:11px!important;font-weight:450;line-height:1.45}.muted{font-size:11px}.btn{font-family:inherit;font-size:11px!important;font-weight:650!important;line-height:1.2}
 .stats .card{min-height:92px;display:flex;flex-direction:column;justify-content:center}
-
-.site-dialog{position:fixed;inset:0;z-index:999;background:rgba(0,0,0,.68);display:none;place-items:center;padding:16px}.site-dialog.open{display:grid}.dialog-card{width:min(460px,100%);background:#0b2039;border:1px solid #2b6595;border-radius:14px;padding:18px;box-shadow:0 20px 55px rgba(0,0,0,.45)}.dialog-card h3{margin-top:0}.dialog-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:14px}

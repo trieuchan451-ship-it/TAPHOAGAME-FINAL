@@ -169,8 +169,8 @@ async function initDb(){
    status VARCHAR(20) NOT NULL DEFAULT 'pending',
    created_at TIMESTAMPTZ DEFAULT NOW(), paid_at TIMESTAMPTZ
  );
-  ALTER TABLE deposits ADD COLUMN IF NOT EXISTS payment_memo VARCHAR(80) DEFAULT '';
-CREATE TABLE IF NOT EXISTS withdrawals(
+ ALTER TABLE deposits ADD COLUMN IF NOT EXISTS payment_memo VARCHAR(80) DEFAULT '';
+ CREATE TABLE IF NOT EXISTS withdrawals(
    id BIGSERIAL PRIMARY KEY,
    seller_id BIGINT NOT NULL REFERENCES users(id),
    amount BIGINT NOT NULL CHECK(amount>0),
@@ -419,18 +419,12 @@ app.post('/api/complaints',auth,async(req,res)=>{
 });
 
 app.post('/api/deposits',auth,async(req,res)=>{
- const amount=Number(req.body.amount);
- if(!Number.isInteger(amount)||amount<10000)return res.status(400).json({error:'Số tiền nạp tối thiểu 10.000đ'});
+ const amount=Number(req.body.amount);if(!Number.isInteger(amount)||amount<10000)return res.status(400).json({error:'Số tiền nạp tối thiểu 10.000đ'});
  const memo='TG'+req.user.id+'NAP';
  const old=(await pool.query(`SELECT * FROM deposits WHERE user_id=$1 AND status='pending' ORDER BY id DESC LIMIT 1`,[req.user.id])).rows[0];
  let row;
- if(old){
-   row=(await pool.query(`UPDATE deposits SET amount=$1,payment_memo=$2 WHERE id=$3 RETURNING *`,[amount,memo,old.id])).rows[0];
- }else{
-   const internal='DEP'+req.user.id+'-'+Date.now();
-   row=(await pool.query(`INSERT INTO deposits(user_id,amount,transfer_code,payment_memo) VALUES($1,$2,$3,$4) RETURNING *`,
-     [req.user.id,amount,internal,memo])).rows[0];
- }
+ if(old) row=(await pool.query(`UPDATE deposits SET amount=$1,payment_memo=$2 WHERE id=$3 RETURNING *`,[amount,memo,old.id])).rows[0];
+ else row=(await pool.query(`INSERT INTO deposits(user_id,amount,transfer_code,payment_memo) VALUES($1,$2,$3,$4) RETURNING *`,[req.user.id,amount,'DEP'+req.user.id+'-'+Date.now(),memo])).rows[0];
  res.json({...row,payment_memo:memo,bank:{name:'MB Bank',account:'11042004102005',accountName:'TRIEU CHOI CHAN'}});
 });
 app.get('/api/deposits/mine',auth,async(req,res)=>res.json((await pool.query(`SELECT * FROM deposits WHERE user_id=$1 ORDER BY id DESC`,[req.user.id])).rows));
