@@ -506,6 +506,22 @@ app.post('/api/auctions/:id/bid',auth,async(req,res)=>{
  }catch(e){await c.query('ROLLBACK');res.status(400).json({error:e.message})}finally{c.release()}
 });
 
+
+app.get('/api/seller/dashboard',auth,seller,async(req,res)=>{
+ await pool.query(`UPDATE auctions SET status='ended' WHERE seller_id=$1 AND status='approved' AND ends_at<=NOW()`,[req.user.id]);
+ const [products,orders,auctions,complaints,withdrawals]=await Promise.all([
+  pool.query(`SELECT id,game,title,price,status,image,warranty_days,created_at FROM products WHERE seller_id=$1 ORDER BY id DESC`,[req.user.id]),
+  pool.query(`SELECT o.id,o.amount,o.seller_net,o.status,o.release_status,o.hold_until,o.created_at,p.title,p.game,b.username buyer
+              FROM orders o JOIN products p ON p.id=o.product_id JOIN users b ON b.id=o.buyer_id
+              WHERE o.seller_id=$1 ORDER BY o.id DESC`,[req.user.id]),
+  pool.query(`SELECT a.id,a.game,a.title,a.start_price,a.current_price,a.bid_step,a.current_bidder,a.ends_at,a.status,a.created_at,u.username current_bidder_name
+              FROM auctions a LEFT JOIN users u ON u.id=a.current_bidder WHERE a.seller_id=$1 ORDER BY a.id DESC`,[req.user.id]),
+  pool.query(`SELECT c.id,c.order_id,c.type,c.status,c.description,c.created_at,b.username buyer FROM complaints c JOIN users b ON b.id=c.buyer_id WHERE c.seller_id=$1 ORDER BY c.id DESC`,[req.user.id]),
+  pool.query(`SELECT id,amount,bank,account_no,status,created_at,processed_at FROM withdrawals WHERE seller_id=$1 ORDER BY id DESC LIMIT 100`,[req.user.id])
+ ]);
+ res.json({products:products.rows,orders:orders.rows,auctions:auctions.rows,complaints:complaints.rows,withdrawals:withdrawals.rows});
+});
+
 /* ADMIN */
 
 app.post('/api/me/avatar',auth,async(req,res)=>{const avatar_id=Number(req.body.avatar_id);if(!Number.isInteger(avatar_id)||avatar_id<1||avatar_id>20)return res.status(400).json({error:'Avatar không hợp lệ'});await pool.query(`UPDATE users SET avatar_id=$1 WHERE id=$2`,[avatar_id,req.user.id]);res.json({ok:true,avatar_id})});
@@ -514,16 +530,20 @@ app.post('/api/community/messages',auth,async(req,res)=>{const uq=await pool.que
 app.delete('/api/admin/community/messages/:id',auth,admin,async(req,res)=>{await pool.query(`DELETE FROM community_messages WHERE id=$1`,[Number(req.params.id)]);res.json({ok:true})});
 app.post('/api/admin/users/:id/chat-mute',auth,admin,async(req,res)=>{await pool.query(`UPDATE users SET chat_muted=NOT chat_muted WHERE id=$1`,[Number(req.params.id)]);res.json({ok:true})});
 app.get('/api/admin/community/messages',auth,admin,async(req,res)=>{const q=await pool.query(`SELECT m.id,m.body,m.created_at,u.id user_id,u.username,u.avatar_id,u.chat_muted FROM community_messages m JOIN users u ON u.id=m.user_id ORDER BY m.id DESC LIMIT 200`);res.json(q.rows)});
-app.post('/api/auctions/:id/close',auth,async(req,res)=>{const client=await pool.connect();try{await client.query('BEGIN');const aq=await client.query(`SELECT * FROM auctions WHERE id=$1 FOR UPDATE`,[Number(req.params.id)]);if(!aq.rowCount)throw Error('Không tìm thấy phiên đấu giá');const a=aq.rows[0];if(Number(a.seller_id)!==Number(req.user.id)){await client.query('ROLLBACK');return res.status(403).json({error:'Không có quyền chốt phiên này'})}if(a.status!=='active')throw Error('Phiên đấu giá không còn hoạt động');if(!a.highest_bidder_id)throw Error('Chưa có người trả giá');await client.query(`UPDATE auctions SET status='ended',ends_at=NOW() WHERE id=$1`,[a.id]);await client.query('COMMIT');res.json({ok:true,winner_id:a.highest_bidder_id,amount:a.current_price})}catch(e){await client.query('ROLLBACK');res.status(400).json({error:e.message})}finally{client.release()}});
-
-app.get('/api/admin/stats',auth,admin,async(req,res)=>{
- await releaseMatured();
- const [u,s,p,o,h,c]=await Promise.all([
-   pool.query(`SELECT COUNT(*) c FROM users`),pool.query(`SELECT COUNT(*) c FROM users WHERE role='seller'`),
-   pool.query(`SELECT COUNT(*) c FROM products WHERE status='approved'`),pool.query(`SELECT COUNT(*) c FROM orders`),
-   pool.query(`SELECT COALESCE(SUM(held_balance),0) v FROM users`),pool.query(`SELECT COUNT(*) c FROM complaints WHERE status='open'`)
- ]);
- res.json({users:Number(u.rows[0].c),sellers:Number(s.rows[0].c),products:Number(p.rows[0].c),orders:Number(o.rows[0].c),held:Number(h.rows[0].v),complaints:Number(c.rows[0].c)});
+app.post('/api/auctions/:id/close',auth,seller,async(req,res)=>{
+ const c=await pool.connect();
+ try{
+  await c.query('BEGIN');
+  const a=(await c.query(`SELECT * FROM auctions WHERE id=$1 FOR UPDATE`,[Number(req.params.id)])).rows[0];
+  if(!a)throw Error('Không tìm thấy phiên đấu giá');
+  if(Number(a.seller_id)!==Number(req.user.id))throw Error('Bạn không sở hữu phiên đấu giá này');
+  if(a.status!=='approved'||a.ends_at<=new Date())throw Error('Phiên đấu giá đã kết thúc hoặc chưa được duyệt');
+  if(!a.current_bidder)throw Error('Chưa có thành viên trả giá');
+  await c.query(`UPDATE auctions SET status='ended',ends_at=NOW() WHERE id=$1`,[a.id]);
+  await audit(c,req.user.id,'SELLER_CLOSE_AUCTION','auction',a.id,{winner_id:a.current_bidder,amount:a.current_price});
+  await c.query('COMMIT');
+  res.json({ok:true,winner_id:a.current_bidder,amount:a.current_price});
+ }catch(e){await c.query('ROLLBACK');res.status(400).json({error:e.message})}finally{c.release()}
 });
 app.get('/api/admin/users',auth,admin,async(req,res)=>res.json((await pool.query(`
 SELECT u.id,u.username,u.email,u.role,u.status,u.balance,u.seller_balance,u.held_balance,u.register_ip,u.last_login_ip,u.created_at,u.last_seen_at,

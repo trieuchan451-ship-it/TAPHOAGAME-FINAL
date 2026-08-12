@@ -87,3 +87,10 @@ NEON MARKETPLACE v50
 - Admin giao diện gọn: tổng nạp, lần nạp gần nhất, hoạt động gần nhất, online/offline, IP, quản lý người bán/gian hàng.
 
 V60 PRO: avatar, community chat, category warehouse, animated hero, auction dialogs/close, admin unlock-all.
+
+V61 SELLER PRO
+- Xóa hiệu ứng hình bầu dục CSS trên banner.
+- Banner trang chủ dùng video MP4 lặp 10 giây, có ảnh fallback.
+- Trung tâm người bán chia tab: Tổng quan, Đang bán, Đã bán, Chờ duyệt, Đấu giá, Đơn hàng, Khiếu nại, Đăng tài khoản, Tạo đấu giá, Rút tiền.
+- Người bán xem người mua, tiền nhận, trạng thái giữ 72 giờ.
+- Người bán có thể chốt phiên đấu giá bằng popup của website.
