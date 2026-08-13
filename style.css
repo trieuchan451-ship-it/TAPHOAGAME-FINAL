@@ -119,3 +119,35 @@ input,select,textarea{width:100%;padding:11px 12px;margin:5px 0;background:#070d
 .login-row{padding:9px 0;border-bottom:1px solid #1f355d;font-size:9px}
 .seller-trust{font-size:7px;color:#a8b8d0;margin-top:5px}
 @media(max-width:620px){.support-grid{grid-template-columns:1fr}.hero-bg-video{object-position:center center!important}}
+
+/* V70 MOBILE FULL + GAME VIDEO CARDS */
+.game-hub{position:relative;background:#091127 center/cover no-repeat}
+.game-hub>video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0}
+.game-hub-shade{position:absolute;inset:0;z-index:1;background:linear-gradient(180deg,rgba(3,7,18,.08),rgba(4,8,20,.9))}
+.game-hub-body{z-index:2}
+.hub-other{background:radial-gradient(circle at 70% 25%,#5533a8 0,#1a1742 38%,#081020 100%)}
+@media(max-width:620px){
+  body{padding-bottom:0!important}
+  .page{padding:10px!important}
+  .mobile-nav{display:grid!important;position:relative!important;left:auto!important;right:auto!important;bottom:auto!important;margin:0!important;border-radius:0!important;grid-template-columns:repeat(5,1fr)!important}
+  .mobile-nav a{font-size:10px!important;padding:12px 4px!important;min-height:44px!important;display:flex!important;align-items:center!important;justify-content:center!important}
+  .actions{gap:7px!important}.actions .btn{display:inline-flex!important}
+  .btn,.backbtn{min-height:44px!important;padding:11px 14px!important;font-size:11px!important}
+  .product .btn{min-width:100px!important}.product-bottom{gap:8px!important;flex-wrap:wrap!important}
+  .icon-btn{min-height:48px!important;font-size:21px!important}
+  .grid{grid-template-columns:1fr!important}
+  .thumb{height:260px!important}
+  .side{display:block!important}.layout{grid-template-columns:1fr!important}.side{order:2}.layout>section{order:1}
+  .feature-row{grid-template-columns:1fr 1fr!important}
+  .game-hubs{grid-template-columns:1fr!important;gap:12px!important}
+  .game-hub{min-height:220px!important}
+  .game-hub b{font-size:18px!important}.game-hub span{font-size:11px!important}.game-hub .hub-count{font-size:14px!important}
+  .support-float{bottom:18px!important}
+  table{font-size:10px!important}
+}
+
+@media(max-width:620px){
+ .mobile-nav{display:flex!important;overflow-x:auto!important;grid-template-columns:none!important;scrollbar-width:none!important;gap:5px!important;padding:7px!important}
+ .mobile-nav::-webkit-scrollbar{display:none}
+ .mobile-nav a{flex:0 0 auto!important;min-width:92px!important;min-height:44px!important;font-size:10px!important;padding:10px 8px!important;border:1px solid #20375f!important;border-radius:8px!important}
+}

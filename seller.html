@@ -1,9 +1,9 @@
-<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Trung tâm người bán</title><link rel="stylesheet" href="/style.css?v=66"></head><body>
+<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Trung tâm người bán</title><link rel="stylesheet" href="/style.css?v=70"></head><body>
 
 
 <div class="warning"><span>⚠ CẢNH BÁO: Không cung cấp mật khẩu/OTP • Không giao dịch riêng ngoài hệ thống • Chỉ thanh toán theo thông tin TAPHOAGAME hiển thị • Có vấn đề hãy liên hệ hỗ trợ.</span></div>
 <div class="header"><div class="head"><a class="brand" href="/"><div class="brand-logo"></div><div><strong>TAPHOAGAME.VN</strong><small>CHỢ TÀI KHOẢN GAME CAO CẤP</small></div></a><div class="search"><input id="q" placeholder="Tìm tài khoản, trò chơi, người bán..."><button onclick="doSearch()">TÌM</button></div><div class="actions"><div class="wallet guest-hidden"><small>SỐ DƯ</small><b data-balance>0đ</b></div><a class="btn primary" href="/deposit.html">NẠP TIỀN</a><button class="btn" id="accountBtn" onclick="goAccount()">TÀI KHOẢN</button><div class="user-chip" id="userChip" style="display:none" onclick="goAccount()"><img id="chipAvatar" src="/assets/avatars/1.svg"><b id="chipName">Tài khoản</b></div></div></div><div class="nav"><a href="/">TRANG CHỦ</a><a href="/products.html">KHO TÀI KHOẢN</a><a href="/auctions.html">ĐẤU GIÁ</a><a href="/cart.html">GIỎ HÀNG</a><a href="/favorites.html">YÊU THÍCH</a><a href="/history.html">ĐƠN HÀNG</a><a href="/support.html">HỖ TRỢ</a><a href="/seller.html">BÁN HÀNG</a></div></div>
-<div class="mobile-nav"><a href="/">TRANG CHỦ</a><a href="/products.html">KHO</a><a href="/cart.html">GIỎ HÀNG</a><a href="/support.html">HỖ TRỢ</a><a href="/account.html">CÁ NHÂN</a></div>
+<div class="mobile-nav"><a href="/">TRANG CHỦ</a><a href="/products.html">KHO</a><a href="/auctions.html">ĐẤU GIÁ</a><a href="/cart.html">GIỎ HÀNG</a><a href="/favorites.html">YÊU THÍCH</a><a href="/history.html">ĐƠN HÀNG</a><a href="/support.html">HỖ TRỢ</a><a href="/seller.html">BÁN HÀNG</a><a href="/account.html">CÁ NHÂN</a></div>
 <div class="support-float"><a class="tg" href="https://t.me/tungtungsas" target="_blank">TG</a><a class="fb" href="https://www.facebook.com/share/19LX5nekKj/?mibextid=wwXIfr" target="_blank">f</a><a class="phone" href="tel:0876148544">☎</a></div>
 
 
@@ -30,7 +30,7 @@ function tab(id){document.querySelectorAll('.seller-nav button').forEach(x=>x.cl
 function rows(items,empty,renderer){return items.length?items.map(renderer).join(''):`<div class="empty">${empty}</div>`}
 
 async function loadSeller(){
- ME=await current();if(!ME)return location.href='/?login=1';if(ME.role==='admin')return location.href='/admin.html';
+ ME=await current();if(!ME){openAuth();return}if(ME.role==='admin'){sellerRoot.innerHTML='<div class="panel content"><div class="section-head"><h2>QUẢN TRỊ VIÊN</h2></div><a class="btn primary" href="/admin.html">VÀO BỘ ĐIỀU KHIỂN</a></div>';return}
  if(ME.role!=='seller')return loadApply();
  DASH=await api('/api/seller/dashboard');
  const p=DASH.products,o=DASH.orders,a=DASH.auctions,c=DASH.complaints;
@@ -85,6 +85,37 @@ let CLOSE_AUCTION_ID=0;
 function closeAuction(id,amount,bidder){CLOSE_AUCTION_ID=id;document.getElementById('sellerCloseText').textContent='Giá hiện tại: '+money(amount)+' • Người trả cao nhất: '+bidder;document.getElementById('sellerCloseDialog').classList.add('open')}
 async function confirmSellerClose(){try{await api('/api/auctions/'+CLOSE_AUCTION_ID+'/close',{method:'POST'});sellerCloseDialog.classList.remove('open');notify('Đã chốt phiên đấu giá','success','Thành công');loadSeller()}catch(e){notify(e.message,'error','Không thể chốt')}}
 async function withdraw(){try{await api('/api/withdrawals',{method:'POST',body:JSON.stringify({amount:Number(wa.value),bank:wb.value,account_no:wn.value,account_name:wname.value})});notify('Đã gửi yêu cầu rút','success','Thành công')}catch(e){notify(e.message,'error','Không thể rút')}}
-async function loadApply(){const st=await api('/api/seller/status');if(st){sellerRoot.innerHTML=`<div class="panel content"><h2>HỒ SƠ NGƯỜI BÁN</h2><div class="notice">Trạng thái: <b>${st.status}</b><br>${st.admin_note||'Hồ sơ đang được kiểm tra.'}</div></div>`;return}sellerRoot.innerHTML=`<div class="panel content"><h2>ĐĂNG KÝ NGƯỜI BÁN</h2><div class="rules"><b>QUY ĐỊNH NGƯỜI BÁN</b><br>Phải mô tả đúng tài khoản, không gian lận, không bán trùng, không lôi kéo giao dịch ngoài hệ thống và phải phối hợp khi có khiếu nại. Người bán tự chịu trách nhiệm đối với hành vi vi phạm do mình thực hiện.</div><form id="sf"><div class="row"><input name="full_name" placeholder="Họ và tên" required><input name="phone" placeholder="Số điện thoại" required></div><div class="row"><input name="cccd_front" type="file" accept="image/*" required><input name="cccd_back" type="file" accept="image/*" required></div><label class="checkline"><input id="agree" type="checkbox"> Tôi đã đọc và đồng ý quy định</label><button class="btn primary">GỬI HỒ SƠ</button></form></div>`;sf.addEventListener('submit',async e=>{e.preventDefault();if(!agree.checked)return notify('Bạn phải đồng ý quy định','warn','Chưa đồng ý');const fd=new FormData(e.target);fd.append('accept_rules','true');try{await api('/api/seller/apply',{method:'POST',body:fd});loadSeller()}catch(x){notify(x.message,'error','Không thể gửi hồ sơ')}})}
+function showSellerApplyForm(){
+ sellerRoot.innerHTML=`<div class="panel content"><h2>ĐĂNG KÝ NGƯỜI BÁN</h2><div class="rules"><b>QUY ĐỊNH NGƯỜI BÁN</b><br>Phải mô tả đúng tài khoản, không gian lận, không bán trùng, không lôi kéo giao dịch ngoài hệ thống và phải phối hợp khi có khiếu nại. Người bán tự chịu trách nhiệm đối với hành vi vi phạm do mình thực hiện.</div><form id="sf"><div class="row"><input name="full_name" placeholder="Họ và tên" required><input name="phone" placeholder="Số điện thoại" required></div><div class="row"><input name="cccd_front" type="file" accept="image/*" required><input name="cccd_back" type="file" accept="image/*" required></div><label class="checkline"><input id="agree" type="checkbox"> Tôi đã đọc và đồng ý quy định</label><button class="btn primary">GỬI HỒ SƠ DUYỆT</button></form></div>`;
+ const form=document.getElementById('sf');
+ form.addEventListener('submit',async e=>{
+  e.preventDefault();
+  if(!document.getElementById('agree').checked)return notify('Bạn phải đồng ý quy định','warn','Chưa đồng ý');
+  const fd=new FormData(form);fd.append('accept_rules','true');
+  try{await api('/api/seller/apply',{method:'POST',body:fd});notify('Đã gửi hồ sơ chờ duyệt','success','Thành công');setTimeout(loadSeller,500)}
+  catch(x){notify(x.message,'error','Không thể gửi hồ sơ')}
+ });
+}
+async function loadApply(){
+ const st=await api('/api/seller/status');
+ if(!st){showSellerApplyForm();return}
+ if(st.status==='rejected'){
+  sellerRoot.innerHTML=`<div class="panel content"><h2>HỒ SƠ NGƯỜI BÁN</h2><div class="notice">Trạng thái: <b>BỊ TỪ CHỐI</b><br>${st.admin_note||'Vui lòng kiểm tra và gửi lại hồ sơ.'}</div><div style="margin-top:10px"><button class="btn primary" onclick="showSellerApplyForm()">GỬI LẠI HỒ SƠ</button></div></div>`;
+  return;
+ }
+ sellerRoot.innerHTML=`<div class="panel content"><h2>HỒ SƠ NGƯỜI BÁN</h2><div class="notice">Trạng thái: <b>${st.status==='pending'?'ĐANG CHỜ DUYỆT':'ĐÃ DUYỆT'}</b><br>${st.admin_note||'Hồ sơ đang được kiểm tra.'}</div></div>`;
+}
 loadSeller();
+</script><script>
+async function installAuthGuards(){
+ let me=null;try{me=await api('/api/me')}catch{}
+ if(me)return;
+ document.querySelectorAll('a[href]').forEach(a=>{
+   const href=a.getAttribute('href')||'';
+   if(['/account.html','/deposit.html','/history.html','/seller.html','/favorites.html','/cart.html'].some(x=>href.startsWith(x))){
+     a.addEventListener('click',e=>{e.preventDefault();openAuth();});
+   }
+ });
+}
+document.addEventListener('DOMContentLoaded',installAuthGuards);
 </script></body></html>

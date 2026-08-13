@@ -408,7 +408,8 @@ app.post('/api/auth/logout',(req,res)=>{res.clearCookie('tg_session');res.json({
 app.get('/api/me',auth,async(req,res)=>{await releaseMatured();res.json(req.user)});
 
 app.get('/api/seller/status',auth,async(req,res)=>{
- const q=await pool.query(`SELECT id,status,admin_note,accepted_rules,created_at FROM seller_applications WHERE user_id=$1`,[req.user.id]);res.json(q.rows[0]||null);
+ const q=await pool.query(`SELECT id,status,admin_note,created_at,updated_at FROM seller_applications WHERE user_id=$1 ORDER BY id DESC LIMIT 1`,[req.user.id]);
+ res.json(q.rows[0]||null);
 });
 app.post('/api/seller/apply',auth,upload.fields([{name:'cccd_front',maxCount:1},{name:'cccd_back',maxCount:1}]),async(req,res)=>{
  if(req.user.role!=='member')return res.status(400).json({error:'Tài khoản này không thể đăng ký người bán'});
@@ -756,7 +757,19 @@ app.get('/api/admin/seller-applications/:id/cccd/:side',auth,admin,async(req,res
 });
 app.get('/api/admin/seller-applications',auth,admin,async(req,res)=>res.json((await pool.query(`SELECT a.*,u.username,u.email FROM seller_applications a JOIN users u ON u.id=a.user_id ORDER BY CASE WHEN a.status='pending' THEN 0 ELSE 1 END,a.id DESC`)).rows));
 app.post('/api/admin/seller-applications/:id/approve',auth,admin,async(req,res)=>{
- const c=await pool.connect();try{await c.query('BEGIN');const a=(await c.query(`SELECT * FROM seller_applications WHERE id=$1 FOR UPDATE`,[req.params.id])).rows[0];if(!a||!a.accepted_rules)throw Error('Hồ sơ không hợp lệ');await c.query(`UPDATE seller_applications SET status='approved',updated_at=NOW() WHERE id=$1`,[a.id]);await c.query(`UPDATE users SET role='seller',seller_verification='verified' WHERE id=$1`,[a.user_id]);await audit(c,req.user.id,'APPROVE_SELLER','user',a.user_id,{});await notifyUser(c,a.user_id,'seller','Hồ sơ người bán đã được duyệt','Bạn đã có thể sử dụng Trung tâm người bán.','/seller.html');await c.query('COMMIT');res.json({ok:true})}catch(e){await c.query('ROLLBACK');res.status(400).json({error:e.message})}finally{c.release()}
+ const c=await pool.connect();
+ try{
+  await c.query('BEGIN');
+  const a=(await c.query(`SELECT * FROM seller_applications WHERE id=$1 FOR UPDATE`,[Number(req.params.id)])).rows[0];
+  if(!a)throw Error('Không tìm thấy hồ sơ');
+  if(a.status!=='pending')throw Error('Hồ sơ này đã được xử lý');
+  if(!a.accepted_rules)throw Error('Hồ sơ chưa chấp nhận quy định');
+  await c.query(`UPDATE seller_applications SET status='approved',admin_note='',updated_at=NOW() WHERE id=$1`,[a.id]);
+  await c.query(`UPDATE users SET role='seller',seller_verification='verified' WHERE id=$1`,[a.user_id]);
+  await audit(c,req.user.id,'APPROVE_SELLER','user',a.user_id,{application_id:a.id});
+  await notifyUser(c,a.user_id,'seller','Hồ sơ người bán đã được duyệt','Bạn đã có thể đăng tài khoản và quản lý đơn hàng.','/seller.html');
+  await c.query('COMMIT');res.json({ok:true});
+ }catch(e){await c.query('ROLLBACK');res.status(400).json({error:e.message})}finally{c.release()}
 });
 app.post('/api/admin/seller-applications/:id/reject',auth,admin,async(req,res)=>{
  const a=(await pool.query(`SELECT * FROM seller_applications WHERE id=$1`,[req.params.id])).rows[0];if(!a)return res.status(404).json({error:'Không tìm thấy'});

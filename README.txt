@@ -139,3 +139,12 @@ V69 ITEM CODE + CCCD
 - Mã giao dịch hiển thị trên card sản phẩm, Trung tâm người bán, lịch sử đơn và Admin.
 - Ảnh CCCD người đăng ký người bán không còn mở công khai qua /uploads.
 - Admin có nút XEM CCCD TRƯỚC / SAU và xem trong popup bảo vệ bằng phiên đăng nhập Admin.
+
+V70 MOBILE + SELLER + GAME VIDEO FIX
+- Mobile tăng kích thước nút và vùng chạm, hiển thị đầy đủ các mục như desktop bằng thanh menu cuộn ngang.
+- Admin mobile có nút Về website và đầy đủ menu quản trị.
+- Khách chưa đăng nhập bấm khu cần tài khoản sẽ mở popup Đăng nhập/Đăng ký thay vì bị đẩy trang.
+- Bỏ thông báo/cổng cảnh báo tự bật khi mới vào website.
+- Sửa luồng đăng ký/duyệt người bán và gửi lại hồ sơ bị từ chối.
+- 4 video Liên Quân / Free Fire / PUBG / LMHT được gắn đúng card game.
+- Thêm card GAME KHÁC; trên mobile 5 card game hiển thị dọc.

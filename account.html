@@ -1,7 +1,7 @@
-<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Cá nhân</title><link rel="stylesheet" href="/style.css?v=66"></head><body>
+<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Cá nhân</title><link rel="stylesheet" href="/style.css?v=70"></head><body>
 <div class="warning"><span>⚠ CẢNH BÁO: Không cung cấp mật khẩu/OTP • Không giao dịch riêng ngoài hệ thống • Chỉ thanh toán theo thông tin TAPHOAGAME hiển thị • Có vấn đề hãy liên hệ hỗ trợ.</span></div>
 <div class="header"><div class="head"><a class="brand" href="/"><div class="brand-logo"></div><div><strong>TAPHOAGAME.VN</strong><small>CHỢ TÀI KHOẢN GAME CAO CẤP</small></div></a><div class="search"><input id="q" placeholder="Tìm tài khoản, trò chơi, người bán..."><button onclick="doSearch()">TÌM</button></div><div class="actions"><div class="wallet guest-hidden"><small>SỐ DƯ</small><b data-balance>0đ</b></div><a class="btn primary" href="/deposit.html">NẠP TIỀN</a><button class="btn" id="accountBtn" onclick="goAccount()">TÀI KHOẢN</button><div class="user-chip" id="userChip" style="display:none" onclick="goAccount()"><img id="chipAvatar" src="/assets/avatars/1.svg"><b id="chipName">Tài khoản</b></div></div></div><div class="nav"><a href="/">TRANG CHỦ</a><a href="/products.html">KHO TÀI KHOẢN</a><a href="/auctions.html">ĐẤU GIÁ</a><a href="/cart.html">GIỎ HÀNG</a><a href="/favorites.html">YÊU THÍCH</a><a href="/history.html">ĐƠN HÀNG</a><a href="/support.html">HỖ TRỢ</a><a href="/seller.html">BÁN HÀNG</a></div></div>
-<div class="mobile-nav"><a href="/">TRANG CHỦ</a><a href="/products.html">KHO</a><a href="/cart.html">GIỎ HÀNG</a><a href="/support.html">HỖ TRỢ</a><a href="/account.html">CÁ NHÂN</a></div>
+<div class="mobile-nav"><a href="/">TRANG CHỦ</a><a href="/products.html">KHO</a><a href="/auctions.html">ĐẤU GIÁ</a><a href="/cart.html">GIỎ HÀNG</a><a href="/favorites.html">YÊU THÍCH</a><a href="/history.html">ĐƠN HÀNG</a><a href="/support.html">HỖ TRỢ</a><a href="/seller.html">BÁN HÀNG</a><a href="/account.html">CÁ NHÂN</a></div>
 <div class="support-float"><a class="tg" href="https://t.me/tungtungsas" target="_blank">TG</a><a class="fb" href="https://www.facebook.com/share/19LX5nekKj/?mibextid=wwXIfr" target="_blank">f</a><a class="phone" href="tel:0876148544">☎</a></div>
 <main class="page"><div class="backbar"><a class="backbtn" href="javascript:history.back()">← TRỞ VỀ</a></div><div class="panel content"><div class="section-head" style="margin-top:0"><h1>TRUNG TÂM TÀI KHOẢN</h1></div><div class="info-grid" id="profile"></div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"><a class="btn" href="/history.html">ĐƠN HÀNG</a><a class="btn primary" href="/deposit.html">NẠP TIỀN</a><a class="btn" href="/support.html">HỖ TRỢ</a><a class="btn" href="/seller.html">BÁN HÀNG</a><a class="btn" id="adminQuick" href="/admin.html" style="display:none">BỘ ĐIỀU KHIỂN</a><button class="btn bad" onclick="logout()">ĐĂNG XUẤT</button></div></div><div class="panel content avatar-summary" style="margin-top:12px"><div><div class="section-head" style="margin:0"><h2>AVATAR CÁ NHÂN</h2></div><div class="hint">Chỉ mở danh sách khi bạn muốn thay avatar.</div></div><div class="avatar-current"><img id="currentAvatarLarge" src="/assets/avatars/1.svg"><button class="btn primary" onclick="openAvatarPicker()">ĐỔI AVATAR</button></div></div>
 <div class="modal" id="avatarModal"><div class="avatar-modal-box"><div class="auth-head"><div><b>CHỌN AVATAR CÁ NHÂN</b><div class="hint">20 mẫu gaming</div></div><button class="btn" onclick="closeAvatarPicker()">ĐÓNG</button></div><div class="avatar-choice" id="avatarChoices"></div><div class="avatar-modal-actions"><button class="btn" onclick="closeAvatarPicker()">HỦY</button><button class="btn primary" onclick="saveAvatarChoice()">XÁC NHẬN</button></div></div></div><div class="panel content" style="margin-top:12px"><div class="section-head"><h2>THÔNG BÁO CỦA BẠN</h2><button class="btn" onclick="readAllNotifications()">ĐÁNH DẤU ĐÃ ĐỌC</button></div><div id="notificationList"></div></div>
@@ -24,7 +24,7 @@ async function register(){try{await api('/api/auth/register',{method:'POST',body
 async function logout(){await api('/api/auth/logout',{method:'POST'});location.href='/'}
 async function load(){
  const u=await current();
- if(!u)return location.href='/?login=1';
+ if(!u){openAuth();return}
  const roleName=u.role==='admin'?'Quản trị viên':u.role==='seller'?'Người bán':'Thành viên';if(u.role==='admin'){const aq=document.getElementById('adminQuick');if(aq)aq.style.display='inline-flex'}
  const extra=u.role==='seller'
    ? `<div class="panel info-card"><small>CÓ THỂ RÚT</small><b>${money(u.seller_balance)}</b></div><div class="panel info-card"><small>ĐANG GIỮ 72 GIỜ</small><b>${money(u.held_balance)}</b></div>`
@@ -32,25 +32,7 @@ async function load(){
  profile.innerHTML=`<div class="panel info-card"><small>TÊN ĐĂNG NHẬP</small><b>${u.username}</b></div><div class="panel info-card"><small>EMAIL</small><b>${u.email}</b></div><div class="panel info-card"><small>LOẠI TÀI KHOẢN</small><b>${roleName}</b></div><div class="panel info-card"><small>SỐ DƯ</small><b>${money(u.balance)}</b></div>${extra}`;
 }
 load();</script>
-<script>
-(async function blueProUpgrade(){
-  try{
-    const r=await fetch('/api/me',{credentials:'include'});
-    const wallets=document.querySelectorAll('.wallet');
-    if(!r.ok){wallets.forEach(x=>x.classList.add('guest-hidden'))}
-    else{
-      const me=await r.json();
-      wallets.forEach(x=>{x.classList.remove('guest-hidden'); const b=x.querySelector('[data-balance],b'); if(b)b.textContent=Number(me.balance||0).toLocaleString('vi-VN')+'đ';});
-    }
-  }catch(e){document.querySelectorAll('.wallet').forEach(x=>x.classList.add('guest-hidden'))}
-  if(!localStorage.getItem('tg_cyber_notice_v1')){
-    const gate=document.createElement('div'); gate.className='cyber-gate';
-    gate.innerHTML=`<div class="cyber-card"><div style="display:flex;gap:14px;align-items:center"><img src="/assets/taphoa-game-brand.png" style="width:72px;height:72px;border-radius:50%"><div><small style="font-weight:900;color:#1769aa">THÔNG BÁO HIỂN THỊ TRƯỚC KHI VÀO TRANG</small><h2>Khuyến cáo an toàn không gian mạng</h2></div></div><p>Hãy bảo vệ tài khoản và tài sản của bạn khi giao dịch trực tuyến.</p><div class="legal-note"><b>⚠ Phòng chống lừa đảo</b><br>Không cung cấp mật khẩu, mã OTP hoặc thông tin đăng nhập cho người khác. Không giao dịch riêng ngoài hệ thống. Chỉ thanh toán theo thông tin được website hiển thị và lưu lại bằng chứng giao dịch.</div><p><b>Đối với người bán:</b> phải cung cấp thông tin trung thực, tuân thủ quy định của nền tảng và pháp luật. Cá nhân vi phạm phải tự chịu trách nhiệm về hành vi của mình.</p><p style="font-size:12px;opacity:.75">Đây là khuyến cáo an toàn của TAPHOAGAME, không phải thông báo chứng nhận hoặc bảo trợ của cơ quan nhà nước.</p><button id="acceptCyber">TÔI ĐÃ ĐỌC VÀ HIỂU — VÀO WEBSITE</button></div>`;
-    document.body.appendChild(gate);
-    document.getElementById('acceptCyber').onclick=()=>{localStorage.setItem('tg_cyber_notice_v1','1');gate.remove()};
-  }
-})();
-</script>
+
 
 <div class="community hidden" id="community"><div class="community-head"><b>💬 CHAT CỘNG ĐỒNG</b><button class="btn" style="padding:4px 7px" onclick="hideCommunity()">✕</button></div><div class="community-messages" id="communityMessages"></div><div class="community-send"><input id="communityInput" maxlength="300" placeholder="Nhập tin nhắn..."><button class="btn primary" onclick="sendCommunity()">GỬI</button></div></div><button class="community-open" id="communityOpen" onclick="showCommunity()">💬</button>
 <script>
@@ -77,4 +59,16 @@ loadAccountExtras();
 </script><script>
 async function loadRecentAndWallet(){try{const [r,w]=await Promise.all([api('/api/recently-viewed'),api('/api/me/wallet-ledger')]);recentList.innerHTML=r.length?r.map(x=>`<a class="panel content" href="/products.html?id=${x.id}" style="text-decoration:none"><b>${x.title}</b><div class="price">${money(x.price)}</div><small>${new Date(x.last_viewed).toLocaleString('vi-VN')}</small></a>`).join(''):'<div class="empty" style="grid-column:1/-1">CHƯA CÓ TÀI KHOẢN ĐÃ XEM</div>';walletLedger.innerHTML=w.length?w.map(x=>`<div class="notification-item"><b>${x.amount>0?'+':''}${money(x.amount)} • ${x.kind}</b><div>${x.note||''}</div><small>${new Date(x.created_at).toLocaleString('vi-VN')}</small></div>`).join(''):'<div class="empty">CHƯA CÓ BIẾN ĐỘNG VÍ</div>'}catch(e){}}
 loadRecentAndWallet();
+</script><script>
+async function installAuthGuards(){
+ let me=null;try{me=await api('/api/me')}catch{}
+ if(me)return;
+ document.querySelectorAll('a[href]').forEach(a=>{
+   const href=a.getAttribute('href')||'';
+   if(['/account.html','/deposit.html','/history.html','/seller.html','/favorites.html','/cart.html'].some(x=>href.startsWith(x))){
+     a.addEventListener('click',e=>{e.preventDefault();openAuth();});
+   }
+ });
+}
+document.addEventListener('DOMContentLoaded',installAuthGuards);
 </script></body></html>

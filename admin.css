@@ -16,3 +16,9 @@ th{font-size:10px!important;font-weight:700!important;letter-spacing:.2px}td{fon
 /* V68 admin readability */
 body,.side button,.side a,.btn,table{font-family:"Segoe UI",Inter,Arial,sans-serif;text-rendering:optimizeLegibility;-webkit-font-smoothing:antialiased}
 .side button,.side a{font-weight:650;letter-spacing:.01em;line-height:1.25}.top h1,.card h2{letter-spacing:-.01em}
+
+@media(max-width:950px){
+ .mobile{display:flex!important;align-items:center!important}
+ .mobile .admin-home-mobile{display:inline-flex!important;align-items:center;justify-content:center;white-space:nowrap;text-decoration:none;border:1px solid #2f74ad;background:#0d3b63;color:#fff;border-radius:8px;padding:10px 12px;font-size:10px;font-weight:800}
+ .mobile button{min-height:42px!important;font-size:10px!important;padding:10px 12px!important}
+}
